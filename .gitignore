@@ -1,0 +1,30 @@
+# --- Simulink build artefacts -------------------------------------------------
+# The .slx is GENERATED: build_cubli_clean_cubli() creates it on every run and
+# the model name is passed in, so every experiment leaves one behind. Committing
+# them would be committing stale copies of something the code regenerates.
+*.slx
+*.slxc
+*.mdl
+slprj/
+codegen/
+
+# --- MATLAB scratch -----------------------------------------------------------
+*.asv
+*.autosave
+*.m~
+*.slx.r*
+*.slxc.r*
+
+# --- Verification artefacts ---------------------------------------------------
+# Written by verify_preset_snapshot; the numbers belong in the docs, not in git.
+verify_preset_*.mat
+
+# --- Logs and data ------------------------------------------------------------
+*.txt
+*.mat
+*.csv
+
+# --- OS -----------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini

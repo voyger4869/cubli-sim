@@ -1,0 +1,10 @@
+# Normalise line endings so the repository does not accumulate CRLF/LF churn
+# between Windows, macOS and Linux checkouts. The sources were written on
+# Windows; MATLAB reads LF-terminated .m files fine.
+* text=auto eol=lf
+
+# Simulink models are binary when they do appear (they are gitignored, but be
+# explicit so a force-add never corrupts one).
+*.slx  binary
+*.mdl  binary
+*.mat  binary
