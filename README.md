@@ -1,10 +1,14 @@
 # Cubli Sim
 
+![Stylized Cubli cube with three reaction wheels above a contact plane](assets/cubli-hero.svg)
+
 **A code-generated, 3D reaction-wheel cube simulation built with MATLAB, Simulink, and Simscape Multibody.** The cube can balance on an edge or vertex, stand up from a flat face, and attempt a face-by-face walk. Its wheels, free body, and ground contact are simulated; motion is produced by the controller rather than a prerecorded animation.
 
 **Language:** [English](README.md) · [简体中文](README.zh-CN.md)
 
 > **Project scope:** this is a simulation and control research project. Results below refer to the stated model and solver settings; they are not hardware performance claims. The full development history and failed experiments are documented in [`docs/`](docs/).
+
+---
 
 ## Quick start
 

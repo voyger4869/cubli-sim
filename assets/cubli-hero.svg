@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title description">
+  <title id="title">Cubli Sim</title>
+  <desc id="description">Stylized reaction-wheel cube above a contact plane, with three wheel rings and a dark blue technical background.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071624"/>
+      <stop offset="0.58" stop-color="#0b2639"/>
+      <stop offset="1" stop-color="#12384a"/>
+    </linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b6179"/>
+      <stop offset="1" stop-color="#16465e"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#164359"/>
+      <stop offset="1" stop-color="#0c293d"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#113a50"/>
+      <stop offset="1" stop-color="#091e31"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4edbd6"/>
+      <stop offset="1" stop-color="#76baff"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 H 0 V 40" fill="none" stroke="#8eb6c8" stroke-opacity=".09" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="360" rx="22" fill="url(#background)"/>
+  <rect width="1200" height="360" rx="22" fill="url(#grid)"/>
+  <circle cx="1080" cy="35" r="190" fill="#36bbcf" opacity=".05"/>
+  <circle cx="688" cy="335" r="170" fill="#317ab8" opacity=".06"/>
+  <path d="M 62 48 H 1138" stroke="#a7d8eb" stroke-opacity=".14"/>
+
+  <rect x="78" y="80" width="6" height="30" rx="3" fill="#4edbd6"/>
+  <text x="100" y="105" fill="#a9cbdb" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="600" letter-spacing="5">MATLAB  ·  SIMULINK  ·  MULTIBODY</text>
+  <text x="74" y="187" fill="#f3fbff" font-family="Segoe UI, Arial, sans-serif" font-size="78" font-weight="800" letter-spacing="4">CUBLI</text>
+  <text x="374" y="187" fill="url(#cyan)" font-family="Segoe UI, Arial, sans-serif" font-size="78" font-weight="800" letter-spacing="4">SIM</text>
+  <text x="80" y="225" fill="#a8c9d8" font-family="Segoe UI, Arial, sans-serif" font-size="20" letter-spacing="2">REACTION-WHEEL CUBE · 3D CONTROL</text>
+
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="1.2">
+    <rect x="78" y="266" width="124" height="36" rx="18" fill="#123d4b" stroke="#48b6b8" stroke-opacity=".55"/>
+    <text x="103" y="289" fill="#aeece7">3 WHEELS</text>
+    <rect x="215" y="266" width="119" height="36" rx="18" fill="#163c53" stroke="#6eabd5" stroke-opacity=".48"/>
+    <text x="240" y="289" fill="#badcf3">1 PLANT</text>
+    <rect x="347" y="266" width="157" height="36" rx="18" fill="#193d4e" stroke="#dfa471" stroke-opacity=".48"/>
+    <text x="369" y="289" fill="#f3d4b2">8 TESTED MODES</text>
+  </g>
+
+  <ellipse cx="892" cy="313" rx="125" ry="16" fill="#4edbd6" opacity=".20" filter="url(#glow)"/>
+  <ellipse cx="892" cy="313" rx="100" ry="7" fill="#61c9d5" opacity=".18"/>
+  <path d="M 683 313 H 1093" stroke="#73c8d5" stroke-opacity=".42" stroke-width="2"/>
+  <path d="M 704 323 H 1070" stroke="#73c8d5" stroke-opacity=".13"/>
+  <circle cx="892" cy="311" r="4" fill="#ffbd78"/>
+
+  <g stroke-linejoin="round">
+    <path d="M 754 122 L 879 67 L 1005 123 L 879 179 Z" fill="url(#top)" stroke="#79d8e2" stroke-opacity=".76" stroke-width="2"/>
+    <path d="M 754 122 L 879 179 L 879 305 L 754 250 Z" fill="url(#left)" stroke="#5dbecf" stroke-opacity=".76" stroke-width="2"/>
+    <path d="M 879 179 L 1005 123 L 1005 250 L 879 305 Z" fill="url(#right)" stroke="#73cbda" stroke-opacity=".72" stroke-width="2"/>
+  </g>
+
+  <g fill="none" stroke="#a7dcea" stroke-opacity=".24" stroke-width="1.5">
+    <path d="M 785 136 L 785 263 M 816 150 L 816 276 M 847 164 L 847 290"/>
+    <path d="M 911 165 L 911 291 M 943 151 L 943 277 M 975 137 L 975 263"/>
+    <path d="M 785 136 L 911 80 M 817 150 L 943 95 M 849 164 L 975 109"/>
+  </g>
+
+  <g transform="rotate(-24 816 209)">
+    <ellipse cx="816" cy="209" rx="45" ry="23" fill="#143f50" stroke="#6ce4dd" stroke-width="5"/>
+    <ellipse cx="816" cy="209" rx="29" ry="14" fill="none" stroke="#b7f4ee" stroke-opacity=".75" stroke-width="2"/>
+    <circle cx="816" cy="209" r="6" fill="#80eee4"/>
+  </g>
+  <g transform="rotate(24 942 209)">
+    <ellipse cx="942" cy="209" rx="45" ry="23" fill="#14374e" stroke="#72bfff" stroke-width="5"/>
+    <ellipse cx="942" cy="209" rx="29" ry="14" fill="none" stroke="#cae6ff" stroke-opacity=".75" stroke-width="2"/>
+    <circle cx="942" cy="209" r="6" fill="#95cbff"/>
+  </g>
+  <g>
+    <ellipse cx="879" cy="123" rx="43" ry="18" fill="#17445c" stroke="#ffc17e" stroke-width="5"/>
+    <ellipse cx="879" cy="123" rx="27" ry="10" fill="none" stroke="#ffe0b5" stroke-opacity=".82" stroke-width="2"/>
+    <circle cx="879" cy="123" r="5" fill="#ffd097"/>
+  </g>
+
+  <path d="M 876 306 L 876 313 M 882 306 L 882 313" stroke="#ffbf79" stroke-width="2"/>
+  <path d="M 1039 111 C 1067 158 1068 207 1038 255" fill="none" stroke="#64bfd3" stroke-opacity=".54" stroke-width="2" stroke-dasharray="5 8"/>
+  <circle cx="1039" cy="111" r="4" fill="#64bfd3"/>
+  <circle cx="1038" cy="255" r="4" fill="#64bfd3"/>
+  <rect width="1198" height="358" x="1" y="1" rx="21" fill="none" stroke="#a6d2e2" stroke-opacity=".16" stroke-width="2"/>
+</svg>
