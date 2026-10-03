@@ -15,6 +15,8 @@ and onto a corner by physically tipping itself over.
 > runtime flow, control modes, verification criteria, and development roadmap.
 > The [`edge low-speed study`](docs/06_棱平衡低轮速控制设计.md) records the new selectable preset,
 > 300 s stand-up run, and solver sensitivity.
+> The [`near-zero wheel-speed development log`](docs/07_近零轮速改进开发全过程.md) continues that study
+> with each trial, failed approach, measurement correction, and release check.
 >
 > **On the script names inside those docs.** The docs were written during development and cite
 > the experiment that produced each number, e.g. *"出处：`src/experiments/exp_yawcause.m`"*.
