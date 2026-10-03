@@ -4,7 +4,7 @@
 % 开发目录里还有一批理想支撑台架（棱铰、顶点万向节、辨识模型）与 131 个内部实验/诊断脚本，
 % **不在本发布版内**。
 %
-% 要改的只有下面那两行，模型**不需要重建**——模式、初始姿态、终止时间全部从工作区读取。
+% 在下方选择模式、预设、路线和时长；模型由脚本自动生成，不需手工改 .slx。
 %
 % 详见 README.md（英文，含快速开始与能力现状）与 docs/（中文，含全部证据与失败记录）。
 
@@ -18,11 +18,16 @@
 %   "flat_to_point"         平放 -> 棱 -> 顶点 -> 保持，完整起立
 %   "flat_to_point_direct"  平放 -> 顶点，一步到位（实验级，未升格）
 %   "walk"                  一个面一个面地翻（验收未通过，见 docs/03）
+%   "walk_route"            用 R/L/U/D 字符串指定世界坐标路线（实验模式）
 %
 % 其中 edge_balance、point_balance、edge_to_point 从"已经平衡好"的姿态开始，
 % 因为它们是控制律开发用的；其余四个才是"从平放起立"的完整动作。
 % ---------------------------------------------------------------------------
 cubliMode = "edge_balance";
+
+% walk_route 专用：每个字符代表翻过一个面。R/L 沿世界 +/-X，U/D 沿世界 +/-Y。
+% 例如 "RLUD" 四步，"RRRRRR" 连续向右六步。完成一步并落稳后才执行下一个。
+cubliRoute = "RLUD";
 
 % ---------------------------------------------------------------------------
 % 控制律怎么处理飞轮转速
@@ -51,7 +56,7 @@ cubliSeconds = 90;
 % ---------------------------------------------------------------------------
 setup_cubli();
 
-ov = {'run.balancePreset',cubliPreset};
+ov = {'run.balancePreset',cubliPreset; 'run.route.sequence',cubliRoute};
 if ~isempty(cubliSeconds)
     ov = [ov; {'run.edge.duration',cubliSeconds; ...
                'run.point.duration',cubliSeconds; ...
@@ -99,7 +104,7 @@ out = sim(model,'ReturnWorkspaceOutputs','on');
 % 把日志放到工作区，这样它们会以名字出现在仿真数据检查器里。
 for nm = ["cubli_com","cubli_rate","cubli_R","cubli_penetration", ...
           "cubli_tau_x","cubli_tau_y","cubli_tau_z", ...
-          "cubli_wx","cubli_wy","cubli_wz"]
+          "cubli_wx","cubli_wy","cubli_wz","cubli_route_state"]
     assignin('base',nm,out.get(nm));
 end
 
@@ -108,7 +113,8 @@ end
 % 于是真实姿态还水平时它就读出几度。两个都打印，差别才看得见。
 cubli_report = cubli_run_report(out.get('cubli_com'),out.get('cubli_rate'), ...
     out.get('cubli_tau_x'),out.get('cubli_tau_y'),out.get('cubli_tau_z'), ...
-    out.get('cubli_penetration'),P,out.get('cubli_R'),out.get('cubli_wy'));
+    out.get('cubli_penetration'),P,out.get('cubli_R'),out.get('cubli_wy'), ...
+    out.get('cubli_route_state'));
 assignin('base','cubli_report',cubli_report);
 
 % 长跑会**合法地**判失败，这里说清楚，免得第一次用的人以为坏了。

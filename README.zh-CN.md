@@ -24,7 +24,7 @@ git clone https://github.com/voyger4869/cubli-sim.git
 cd cubli-sim
 ```
 
-将 MATLAB 的**当前文件夹**设为仓库根目录，即包含 `setup_cubli.m` 的目录。**第一次建议先跑短试验：**打开 [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m)，把顶部三个变量设为：
+将 MATLAB 的**当前文件夹**设为仓库根目录，即包含 `setup_cubli.m` 的目录。**第一次建议先跑短试验：**打开 [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m)，把模式、预设、时长设为：
 
 ```matlab
 cubliMode    = "edge_balance";
@@ -32,7 +32,7 @@ cubliPreset  = "fast";
 cubliSeconds = 10;
 ```
 
-仓库提交中的默认值为 `edge_balance`、`fast`、**90 秒**。然后在 MATLAB 命令窗口运行：
+然后在 MATLAB 命令窗口运行：
 
 ```matlab
 setup_cubli
@@ -43,7 +43,7 @@ run_cubli_clean
 
 ### 2. 选择要看的功能
 
-仍然修改入口顶部的三个变量，然后重新运行：
+修改入口顶部的模式、预设和时长，然后重新运行；路线模式还需设置 `cubliRoute`：
 
 | 目标 | `cubliMode` | `cubliPreset` | `cubliSeconds` |
 |---|---|---|---:|
@@ -68,9 +68,16 @@ run_cubli_clean
 | **平放 → 棱 → 顶点 → 保持** | `flat_to_point` | 通过；完整两段起立 |
 | 平放直接跳到顶点 | `flat_to_point_direct` | 当前判据通过，仍属实验方案 |
 | 逐面行走 | `walk` | 能移动，但面数与接触穿透验收不通过 |
+| 字符串路线行走 | `walk_route` | `RLUD`、`RRRRRR` 和拐弯 `RU` 均逐步完成；接触穿透验收未通过，仍属实验模式 |
 | 冲量式平放 → 顶点 | `stand_to_point` | 未通过；飞轮超出转速预算 |
 
 `verify_cubli` 使用已验收的 `fast` 预设检查全部八种模式：**六项通过，`walk` 和 `stand_to_point` 为已知失败项。**准确边界见[项目状态](docs/01_项目状态.md)与[失败分析](docs/03_未解决与已证伪.md)。
+
+### 字符串路线行走
+
+在 [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m) 中设置 `cubliMode = "walk_route"`，并将 `cubliRoute` 写成由 `R`、`L`、`U`、`D` 组成的字符串，例如 `"RLUD"` 或 `"RRRRRR"`。`R/L` 分别沿地面固定世界坐标 `+X/-X`，`U/D` 沿 `+Y/-Y`；一个字符表示翻过一个面。路线长度为 1–64 步，大小写均可；时长默认按每步 4 秒加 2 秒余量自动计算。`cubliSeconds` 不覆盖该模式的时长。
+
+控制器等当前一步转过约 90°、飞轮减速、方块落平且角速度变小，再执行下一个字符。转向时会根据方块当前姿态重新选飞轮。工作区的 `cubli_route_state` 记录 `[已完成步数; 阶段; 故障码]`，`cubli_report` 同时核对逐步位移、终点误差、落稳与接触穿透。可运行 `verify_walk_route` 复现三个短路线。**现有接触模型的峰值穿透约 2.4–2.5 mm，超过原验收门槛；路线动作完成不代表整体验收通过。**设计和逐项结果见[路线行走开发记录](docs/08_字符串路线行走开发记录.md)。
 
 ## 棱平衡飞轮转速预设
 
@@ -95,6 +102,7 @@ verify_cubli                                % 八种模式；其中两项为已�
 verify_edge_low_speed("stand_to_edge",30)   % 低轮速快速检查
 verify_edge_near_zero("stand_to_edge",300)  % 近零轮速长时检查
 verify_edge_near_zero("edge_balance",120)   % 从棱上直接起步
+verify_walk_route                            % RLUD、RRRRRR、RU；路线实验
 ```
 
 近零轮速验证脚本会核对求解器块、连续稳定捕获、随棱姿态、Y 轮末段统计和**三轮合成转速**。300 秒验证需要较长运行时间。若要比较修改前后的原始行为，可使用 [`src/verification/`](src/verification/) 中的 `verify_preset_snapshot`、`verify_preset_compare`。
@@ -131,6 +139,7 @@ flowchart LR
 | [05 · 架构与开发指南](docs/05_架构与开发指南.md) | 建模、数据流、控制逻辑和继续开发方式 |
 | [06 · 棱平衡低轮速控制设计](docs/06_棱平衡低轮速控制设计.md) | 低轮速预设与求解器敏感性 |
 | [07 · 近零轮速改进开发全过程](docs/07_近零轮速改进开发全过程.md) | 每轮尝试、问题、修正与发布验收 |
+| [08 · 字符串路线行走开发记录](docs/08_字符串路线行走开发记录.md) | 路线语法、转向控制、仿真结果与未解决的接触问题 |
 
 当前接触模型**尚无跨局部求解步长的数值收敛证据**。长时间仿真仍有偏航及接触位置漂移；阅读轮速结果时必须同时看这些状态和求解器配置。项目尚未完成实物控制器验证。
 

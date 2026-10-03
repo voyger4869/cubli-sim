@@ -24,7 +24,7 @@ git clone https://github.com/voyger4869/cubli-sim.git
 cd cubli-sim
 ```
 
-Set MATLAB's **Current Folder** to that repository root, where `setup_cubli.m` lives. **For a first, shorter run**, open [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m) and set its three top-level choices to:
+Set MATLAB's **Current Folder** to that repository root, where `setup_cubli.m` lives. **For a first, shorter run**, open [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m) and set the mode, preset, and duration to:
 
 ```matlab
 cubliMode    = "edge_balance";
@@ -32,7 +32,7 @@ cubliPreset  = "fast";
 cubliSeconds = 10;
 ```
 
-The committed defaults are `edge_balance`, `fast`, and **90 s**. Now run in the MATLAB Command Window:
+Now run in the MATLAB Command Window:
 
 ```matlab
 setup_cubli
@@ -43,7 +43,7 @@ The entry script calls `setup_cubli` itself, so the first command is optional wh
 
 ### 2. Choose an experiment
 
-Edit the same three lines and rerun `run_cubli_clean`:
+Edit the mode, preset, and duration and rerun `run_cubli_clean`. Route mode also uses `cubliRoute`:
 
 | Goal | `cubliMode` | `cubliPreset` | `cubliSeconds` |
 |---|---|---|---:|
@@ -68,9 +68,16 @@ All capabilities use the same free-contact plant. “Passes” refers to the pro
 | **Flat face → edge → vertex → hold** | `flat_to_point` | Passes; complete two-stage stand-up |
 | Flat face → vertex directly | `flat_to_point_direct` | Passes its current check; still experimental |
 | Face-by-face walking | `walk` | Moves, but fails step-count/penetration checks |
+| String-directed walking | `walk_route` | `RLUD`, `RRRRRR`, and turning route `RU` complete their steps; contact-penetration check still fails |
 | Impulse-based flat → vertex | `stand_to_point` | Fails; wheel speed exceeds the budget |
 
 `verify_cubli` checks all eight modes with the verified `fast` preset. **Six pass; `walk` and `stand_to_point` are known failures.** See [status](docs/01_项目状态.md) and [failure analysis](docs/03_未解决与已证伪.md) for the exact limits.
+
+### String-directed walking
+
+In [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m), set `cubliMode = "walk_route"` and set `cubliRoute` to a string such as `"RLUD"` or `"RRRRRR"`. Each letter requests one face roll in a fixed ground-plane world direction: `R/L` are `+X/-X`; `U/D` are `+Y/-Y`. Routes contain 1–64 letters, case insensitive. The default duration is four seconds per letter plus two seconds; `cubliSeconds` does not override this mode.
+
+The controller waits for a roll, wheel slowdown, and a settled flat face before advancing. It reselects the wheel from the cube attitude after a turn. `cubli_route_state` logs `[completed steps; phase; fault code]`, and `cubli_report` checks each step, the endpoint, settling, and contact penetration. Run `verify_walk_route` for the three short examples. **Peak contact penetration remains about 2.4–2.5 mm and fails the existing gate, so this is still experimental.** See the [route development record](docs/08_字符串路线行走开发记录.md).
 
 ## Edge-balance wheel-speed presets
 
@@ -95,6 +102,7 @@ verify_cubli                                % eight modes; two known failures
 verify_edge_low_speed("stand_to_edge",30)   % quick low-speed check
 verify_edge_near_zero("stand_to_edge",300)  % long near-zero check
 verify_edge_near_zero("edge_balance",120)   % starts on the edge
+verify_walk_route                            % RLUD, RRRRRR, RU route trials
 ```
 
 The near-zero verifier checks the solver block, continuous edge capture, edge-frame attitude, Y-wheel tail statistics, and the combined speed of **all three wheels**. The 300 s run is intentionally long. For controlled before/after comparisons of the original behavior, see `verify_preset_snapshot` and `verify_preset_compare` in [`src/verification/`](src/verification/).
@@ -131,6 +139,7 @@ The release contains the runnable plant and verification scripts. The larger dev
 | [05 · Architecture and development guide](docs/05_架构与开发指南.md) | Model construction, data flow, control logic, and development workflow |
 | [06 · Edge low-speed study](docs/06_棱平衡低轮速控制设计.md) | Low-speed presets and solver sensitivity |
 | [07 · Near-zero development log](docs/07_近零轮速改进开发全过程.md) | Full sequence of trials, setbacks, fixes, and release checks |
+| [08 · String-directed walking](docs/08_字符串路线行走开发记录.md) | Route syntax, turning logic, measured results, and unresolved contact error |
 
 The contact model has **not demonstrated numerical convergence** across local solver steps. Long runs also show yaw and contact-position drift; wheel-speed improvements should always be read with those measurements and solver settings. This remains a simulation result, not a validated hardware controller.
 

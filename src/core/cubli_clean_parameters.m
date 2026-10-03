@@ -220,7 +220,7 @@ P.geometry.wheelCenters = [ 0.050  0.025  0;
 % renumbering would invalidate every recorded result that cites a code.
 P.run.modes = ["idle","edge_balance","stand_to_edge","point_balance","walk", ...
                "stand_to_point","edge_to_point","flat_to_point", ...
-               "flat_to_point_direct"];
+               "flat_to_point_direct","walk_route"];
 P.run.mode = "edge_balance";
 
 % Edge balance gains. The LAW transfers from G1, but the GAINS DO NOT.
@@ -434,6 +434,20 @@ P.run.walk.dir = "+x";        % "+x" | "-x" | "+y" | "-y"
 % cubli_clean_parameters has run, so overriding run.walk.dir would leave the
 % wheel and sign stale -- the same silent-failure shape as P.run.ic.*.
 
+% Route walking (mode 9). Each character means one complete face roll in a
+% fixed WORLD direction: R/L = +/-X, U/D = +/-Y. The route is compiled to a
+% fixed-size numeric controller input by cubli_route_encode; the original
+% single-direction walk controller and its 58-element parameter vector stay
+% unchanged. The gait remains experimental until its physical checks pass.
+P.run.route.sequence = "RLUD";
+P.run.route.maxSteps = 64;
+P.run.route.stepTimeout = 4.0;
+P.run.route.flatTolDeg = 10;
+P.run.route.rateTol = 0.5;
+P.run.route.settleTime = 0.10;
+P.run.route.minTravelFrac = 0.5;
+P.run.route.duration = [];  % auto: stepTimeout * route length + 2 s
+
 
 % Capture-window gate for the manoeuvre modes (5 and 6), in degrees and rad/s.
 % Peak torque is held while the tilt or the tilt rate exceeds these, then the
@@ -498,6 +512,13 @@ switch P.run.mode
     case "flat_to_point",  P.run.duration = P.run.flatchain.duration;
     case "flat_to_point_direct", P.run.duration = P.run.directjump.duration;
     case "walk",          P.run.duration = P.run.walk.duration;
+    case "walk_route"
+        if isempty(P.run.route.duration)
+            P.run.duration = P.run.route.stepTimeout* ...
+                numel(char(P.run.route.sequence)) + 2.0;
+        else
+            P.run.duration = P.run.route.duration;
+        end
     otherwise,             P.run.duration = P.run.edge.duration;
 end
 

@@ -1,4 +1,4 @@
-function report = cubli_run_report(com,rate,tauX,tauY,tauZ,penetration,P,Rrot,wheelY)
+function report = cubli_run_report(com,rate,tauX,tauY,tauZ,penetration,P,Rrot,wheelY,routeLog)
 %CUBLI_RUN_REPORT Verdict for a unified-plant run, per selected mode.
 %
 % For edge_balance the state is reconstructed the same way the controller
@@ -29,6 +29,7 @@ function report = cubli_run_report(com,rate,tauX,tauY,tauZ,penetration,P,Rrot,wh
 if nargin < 7 || isempty(P), P = cubli_clean_parameters(); end
 if nargin < 8, Rrot = []; end
 if nargin < 9, wheelY = []; end
+if nargin < 10, routeLog = []; end
 d = P.geometry.edgeHeight;
 c = reshape(com.Data,3,numel(com.Time));
 r = reshape(rate.Data,3,numel(rate.Time));
@@ -115,6 +116,60 @@ switch P.run.mode
             1.5*P.cube.assemblyMass*P.world.gravity/P.contact.normalStiffness;
         report.checks = {'durationOk','endedOnVertex','stayedOnVertex', ...
                          'penetrationOk'};
+    case "walk_route"
+        assert(~isempty(routeLog),'CubliClean:RouteLog', ...
+            'Route walking requires the cubli_route_state log.');
+        state = cubli_log_reshape(routeLog,3);
+        routeCodes = cubli_route_encode(P.run.route.sequence,64);
+        n = nnz(routeCodes);
+        expected = P.cube.side*[sum(routeCodes==1)-sum(routeCodes==2); ...
+            sum(routeCodes==3)-sum(routeCodes==4)];
+        actual = c(1:2,end)-c(1:2,1);
+        report.route = upper(string(P.run.route.sequence));
+        report.routeCompleted = round(state(1,end));
+        report.routePhase = round(state(2,end));
+        report.routeFault = round(state(3,end));
+        report.expectedXY = expected;
+        report.actualXY = actual;
+        report.positionErrorSides = norm(actual-expected)/P.cube.side;
+        report.completedOk = report.routeCompleted == n && report.routePhase == 4;
+        report.faultOk = report.routeFault == 0;
+        report.positionOk = report.positionErrorSides <= max(0.5,0.05*n);
+        % Inspect each transition, not just the net endpoint: RLUD can return
+        % near its start even if an individual command went the wrong way.
+        change = find(diff(state(1,:)) > 0) + 1;
+        report.stepXY = zeros(2,numel(change));
+        report.stepProjectionSides = zeros(1,numel(change));
+        report.stepCrossSides = zeros(1,numel(change));
+        if ~isempty(change)
+            atChange = interp1(t,c(1:2,:).',routeLog.Time(change),'linear').';
+            report.stepXY = diff([c(1:2,1),atChange],1,2);
+            for step = 1:numel(change)
+                switch routeCodes(step)
+                    case 1, direction = [1;0];
+                    case 2, direction = [-1;0];
+                    case 3, direction = [0;1];
+                    case 4, direction = [0;-1];
+                end
+                report.stepProjectionSides(step) = ...
+                    direction.'*report.stepXY(:,step)/P.cube.side;
+                report.stepCrossSides(step) = ...
+                    abs([-direction(2),direction(1)]*report.stepXY(:,step))/P.cube.side;
+            end
+        end
+        report.stepsOk = numel(change) == n && ...
+            all(report.stepProjectionSides >= P.run.route.minTravelFrac) && ...
+            all(report.stepCrossSides <= 0.75);
+        last = t >= max(0,t(end)-min(0.5,t(end)/4));
+        zFlat = P.cube.side/2 - ...
+            P.cube.assemblyMass*P.world.gravity/P.contact.normalStiffness;
+        report.settledOk = all(abs(c(3,last)-zFlat)<0.003) && ...
+            max(vecnorm(r(:,last))) < P.run.route.rateTol;
+        report.penetrationMax = max(penetration.Data(:));
+        report.penetrationOk = report.penetrationMax <= ...
+            1.5*P.cube.assemblyMass*P.world.gravity/P.contact.normalStiffness;
+        report.checks = {'durationOk','completedOk','faultOk','stepsOk','positionOk', ...
+            'settledOk','penetrationOk'};
     case "walk"
         % Discrete face-by-face gait. Counted on the ACCUMULATED cube rotation
         % about world Y, never on an attitude angle: atan2(R13,R33) reads the
@@ -226,6 +281,15 @@ elseif strcmp(P.run.mode,"walk")
         'travel %.2f sides  flat %.0f%% of the run\n'], ...
         P.run.mode, report.tEnd, P.run.walk.nStep, report.facesDone, ...
         report.sideTravel, 100*report.flatFrac);
+elseif strcmp(P.run.mode,"walk_route")
+    fprintf(['Cubli walk_route "%s": %d/%d steps, phase %d, fault %d; ' ...
+        'XY actual [%.4f %.4f] m, expected [%.4f %.4f] m, error %.2f sides\n'], ...
+        report.route,report.routeCompleted,numel(char(report.route)), ...
+        report.routePhase,report.routeFault,report.actualXY, ...
+        report.expectedXY,report.positionErrorSides);
+    fprintf('  per-step forward travel (sides): %s; cross travel: %s\n', ...
+        mat2str(report.stepProjectionSides,3),mat2str(report.stepCrossSides,3));
+    fprintf('  max contact penetration %.3f mm\n',1000*report.penetrationMax);
 else
     fprintf('Cubli %s: tEnd=%.3f  comZ min %.5f  tauPeak=[%.4f %.4f %.4f]\n', ...
         P.run.mode, report.tEnd, report.comZMin, report.tauPeak);

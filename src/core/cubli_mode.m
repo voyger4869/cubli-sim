@@ -42,7 +42,7 @@ switch P.run.mode
         P.run.ic.x = -P.cube.side/2;
         P.run.ic.z = P.cube.side/2 - compression;
         P.run.duration = P.run.standup.duration;
-    case "walk"
+    case {"walk","walk_route"}
         % Discrete face-by-face gait, starting flat exactly as stand_to_edge
         % does: the first step is the same tip over a bottom edge, and every
         % later step is geometrically identical to it.
@@ -52,14 +52,33 @@ switch P.run.mode
         % the same motion about a different axis.
         P.run.ic.R = eye(3);
         s = P.cube.side/2;
-        switch P.run.walk.dir
+        firstDir = P.run.walk.dir;
+        if P.run.mode == "walk_route"
+            routeCodes = cubli_route_encode(P.run.route.sequence,64);
+            switch routeCodes(1)
+                case 1, firstDir = "+x";
+                case 2, firstDir = "-x";
+                case 3, firstDir = "+y";
+                case 4, firstDir = "-y";
+            end
+        end
+        switch firstDir
             case "+x", P.run.ic.x = -s; P.run.ic.y = 0;
             case "-x", P.run.ic.x = +s; P.run.ic.y = 0;
             case "+y", P.run.ic.x = 0;  P.run.ic.y = -s;
             case "-y", P.run.ic.x = 0;  P.run.ic.y = +s;
         end
         P.run.ic.z = P.cube.side/2 - compression;
-        P.run.duration = P.run.walk.duration;
+        if P.run.mode == "walk_route"
+            if isempty(P.run.route.duration)
+                P.run.duration = P.run.route.stepTimeout* ...
+                    numel(char(P.run.route.sequence)) + 2.0;
+            else
+                P.run.duration = P.run.route.duration;
+            end
+        else
+            P.run.duration = P.run.walk.duration;
+        end
     case "flat_to_point_direct"
         % EXPERIMENTAL (mode 8). Same flat start as stand_to_point: the pivot
         % corner (body (-s/2,-s/2,-s/2)) at the world origin, so the lift
