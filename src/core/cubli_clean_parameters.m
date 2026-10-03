@@ -841,6 +841,12 @@ P.run.wheelStop.KyawHold = -0.005;
 % that lets the pair unwind must be negative too.
 P.run.wheelStop.YawRateRef = 0;
 
+% Edge-only low-speed candidate, measured with ODE5 @ 0.125 ms. This changes
+% only the Y-wheel integral gain; fast/wheel_stop/wheel_stop_yaw remain intact.
+% See docs/06 for 300 s stand-to-edge traces and the solver sensitivity.
+P.run.edgeLowSpeed.KiEdge = 8e-5;
+P.run.edgeLowSpeed.wheelTailMax = 20; % rad/s, final 10 s of a long run
+
 % Every controller constant, as one vector fed to the controller block from a
 % Constant whose value is the workspace expression P.run.ctrl. Baked-in
 % literals would mean changing a gain silently did nothing until the .slx was

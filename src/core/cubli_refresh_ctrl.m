@@ -71,6 +71,12 @@ switch P.run.balancePreset
         KiE = P.run.wheelStop.KiEdge;  KiP = P.run.wheelStop.KiPoint;
         tiltSrc = 0;   lamW = P.run.wheelStop.leakRate;
         KyawE = P.run.wheelStop.KyawHold;
+    case "edge_low_speed"
+        assert(ismember(P.run.mode,["edge_balance","stand_to_edge"]), ...
+            'CubliClean:EdgeLowSpeedMode', ...
+            'edge_low_speed supports edge_balance and stand_to_edge only.');
+        KiE = P.run.edgeLowSpeed.KiEdge; KiP = 0;
+        tiltSrc = 0; lamW = 0; KyawE = 0;
     otherwise
         error('CubliClean:UnknownBalancePreset', ...
             'Unknown P.run.balancePreset "%s".',P.run.balancePreset);

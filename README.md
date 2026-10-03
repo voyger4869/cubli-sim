@@ -11,6 +11,10 @@ and onto a corner by physically tipping itself over.
 > **The documentation is in Chinese.** This README is in English so the project can be found and
 > understood; the detailed docs (including every measurement and every failed approach) are in
 > [`docs/`](docs/). Start with [`docs/01_项目状态.md`](docs/01_项目状态.md) — the project status.
+> The [`architecture and development guide`](docs/05_架构与开发指南.md) explains the build,
+> runtime flow, control modes, verification criteria, and development roadmap.
+> The [`edge low-speed study`](docs/06_棱平衡低轮速控制设计.md) records the new selectable preset,
+> 300 s stand-up run, and solver sensitivity.
 >
 > **On the script names inside those docs.** The docs were written during development and cite
 > the experiment that produced each number, e.g. *"出处：`src/experiments/exp_yawcause.m`"*.
@@ -69,6 +73,12 @@ Balance is selected with `P.run.balancePreset`:
 | `fast` | climbs to ~950 rad/s, then **freezes** | the verified behaviour |
 | `wheel_stop` | settles at 40–60 rad/s | needs the contact solver at 0.25 ms |
 | `wheel_stop_yaw` | as above, plus a gentle yaw hold | halves the slow yaw drift |
+| `edge_low_speed` | about 6–8 rad/s on the Y wheel from 30–300 s after stand-up | experimental; edge modes only; ODE5 @ 0.125 ms |
+
+To try the low-speed edge run, set `cubliMode = "stand_to_edge"`,
+`cubliPreset = "edge_low_speed"`, and `cubliSeconds = 300` in
+`src/core/run_cubli_clean.m`. For a measured pass/fail check, run
+`setup_cubli` followed by `verify_edge_low_speed("stand_to_edge",30)`.
 
 ## This project documents what does *not* work
 
@@ -77,15 +87,16 @@ Most simulation repos show only the happy path. This one keeps the failures, wit
 - **[`docs/03_未解决与已证伪.md`](docs/03_未解决与已证伪.md)** — what is still unsolved, every
   approach that was tried and falsified, and a record of **three conclusions that were reported
   and then retracted** (each one because a measurement was read the wrong way).
-- The two balance presets differ because the first one **cannot** be made to hold the rotor still:
+- The balance presets differ because `fast` **cannot** hold the rotor near zero:
   a proportional law drives its own torque to zero at the balance point, so the rotor freezes
   wherever the entry transient left it. That is a conservation argument, not a tuning problem.
 
 Three things are worth knowing before you read any number here:
 
-1. **The plant is not numerically converged.** Halving the contact solver step again (0.25 ms →
-   0.125 ms) makes the same configuration fall over. So "it works at 0.25 ms" is a statement
-   about one step size, not a converged answer.
+1. **The plant is not numerically converged.** The historical ODE3 configuration falls when
+   halving the contact step from 0.25 to 0.125 ms. The new ODE5 edge preset stays upright at
+   0.25, 0.125, and 0.0625 ms for 120 s, but its wheel speed and yaw are still step sensitive.
+   See [the measurements](docs/06_棱平衡低轮速控制设计.md).
 2. **Every contact-related number must be quoted with its solver setting.** Ideal-joint and
    contact models in this project run on different integrators and are not comparable.
 3. **The balance drifts.** It is stable for minutes, not indefinitely — the *tilt* reaches its

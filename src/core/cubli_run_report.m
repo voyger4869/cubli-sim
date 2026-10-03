@@ -1,4 +1,4 @@
-function report = cubli_run_report(com,rate,tauX,tauY,tauZ,penetration,P,Rrot)
+function report = cubli_run_report(com,rate,tauX,tauY,tauZ,penetration,P,Rrot,wheelY)
 %CUBLI_RUN_REPORT Verdict for a unified-plant run, per selected mode.
 %
 % For edge_balance the state is reconstructed the same way the controller
@@ -19,11 +19,16 @@ function report = cubli_run_report(com,rate,tauX,tauY,tauZ,penetration,P,Rrot)
 % the correct fix and is deliberately NOT done here: the "fast" preset's
 % accepted numbers were recorded on the old basis, and re-basing acceptance
 % criteria after the fact is exactly what this project has refused to do.
+% CORRECTION 2026-10-03: tiltAttDeg is a fixed-world-axis projection, not a
+% yaw-invariant edge tilt. Once the edge yaws, it reads yaw as lean. The
+% edge_low_speed branch below computes edgeFrameTiltDeg in the rotating edge
+% frame and uses that for its own acceptance gate; old gates are unchanged.
 %
 % Thresholds come from P, never from here.
 
 if nargin < 7 || isempty(P), P = cubli_clean_parameters(); end
 if nargin < 8, Rrot = []; end
+if nargin < 9, wheelY = []; end
 d = P.geometry.edgeHeight;
 c = reshape(com.Data,3,numel(com.Time));
 r = reshape(rate.Data,3,numel(rate.Time));
@@ -146,10 +151,51 @@ switch P.run.mode
         report.checks = {'durationOk'};
 end
 
+% The new edge-only preset is judged in the rotating edge frame. The legacy
+% report fields and gates above are deliberately unchanged for old presets.
+if P.run.balancePreset == "edge_low_speed" && ...
+        ismember(P.run.mode,["edge_balance","stand_to_edge"])
+    assert(~isempty(Rrot) && ~isempty(wheelY), ...
+        'CubliClean:EdgeLowSpeedLogs', ...
+        'edge_low_speed report needs attitude and Y-wheel speed logs.');
+    Rm = reshape(cubli_log_reshape(Rrot,9),3,3,[]);
+    ux = (squeeze(Rm(1,3,:)).'-squeeze(Rm(1,1,:)).')/sqrt(2);
+    uy = (squeeze(Rm(2,3,:)).'-squeeze(Rm(2,1,:)).')/sqrt(2);
+    uz = (squeeze(Rm(3,3,:)).'-squeeze(Rm(3,1,:)).')/sqrt(2);
+    ex = squeeze(Rm(1,2,:)).'; ey = squeeze(Rm(2,2,:)).';
+    edgeNorm = hypot(ex,ey);
+    report.edgeFrameTiltDeg = atan2((ux.*ey-uy.*ex)./edgeNorm,uz)*180/pi;
+    report.edgeYawDeg = atan2(-ex,ey)*180/pi;
+    if P.run.mode == "stand_to_edge"
+        edgeWin = t > t(end)-2;
+    else
+        edgeWin = win;
+    end
+    report.edgeFrameTiltPeakDeg = max(abs(report.edgeFrameTiltDeg(edgeWin)));
+    report.tiltOk = report.edgeFrameTiltPeakDeg <= P.run.accept.tiltPeakMaxDeg;
+    wy = cubli_log_reshape(wheelY,1);
+    tw = wheelY.Time(:).';
+    tailWin = tw >= max(0,tw(end)-min(10,tw(end)/2));
+    report.wheelYEnd = wy(end);
+    report.wheelYTailMax = max(abs(wy(tailWin)));
+    report.wheelSpeedOk = report.wheelYTailMax <= P.run.edgeLowSpeed.wheelTailMax;
+    report.checks{end+1} = 'wheelSpeedOk';
+end
+
 passed = false(size(report.checks));
 for k = 1:numel(report.checks), passed(k) = report.(report.checks{k}); end
 report.failedChecks = report.checks(~passed);
 report.ok = isempty(report.failedChecks);
+
+if P.run.balancePreset == "edge_low_speed" && ...
+        ismember(P.run.mode,["edge_balance","stand_to_edge"])
+    fprintf(['  edge_low_speed: edge-frame tilt peak %.4f deg; ' ...
+        'Y wheel end %+.2f rad/s, final-window max %.2f rad/s ' ...
+        '(limit %.1f); edge yaw end %+.2f deg\n'], ...
+        report.edgeFrameTiltPeakDeg,report.wheelYEnd, ...
+        report.wheelYTailMax,P.run.edgeLowSpeed.wheelTailMax, ...
+        report.edgeYawDeg(end));
+end
 
 if strcmp(P.run.mode,"stand_to_edge")
     fprintf(['Cubli %s: tEnd=%.3f  tilt %+.3f -> %+.3f deg  comZ max %.5f ' ...

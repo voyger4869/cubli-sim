@@ -34,6 +34,9 @@ cubliMode = "edge_balance";
 %                    （本脚本会自动在块上设置）。
 %   "wheel_stop_yaw" 同上，另加柔和的 X/Z 偏航保持。慢速自转减半、寿命约翻倍，
 %                    代价是 X/Z 轮以 0.157 rad/s 每秒线性增长（600 s 到 ±84 rad/s）。
+%   "edge_low_speed" 棱平衡专用实验预设：轮速积分增益 8e-5，自动选 ODE5 @ 0.125 ms。
+%                    从平放起立约 1.17 s；300 s 时 Y 轮约 7.5 rad/s。
+%                    求解器敏感性和接触位移限制见 docs/06。
 % ---------------------------------------------------------------------------
 cubliPreset = "fast";
 
@@ -51,6 +54,9 @@ if ~isempty(cubliSeconds)
                'run.point.duration',cubliSeconds; ...
                'run.flatchain.duration',cubliSeconds; ...
                'run.directjump.duration',cubliSeconds}];
+    if cubliPreset == "edge_low_speed"
+        ov = [ov; {'run.standup.duration',cubliSeconds}];
+    end
 end
 P = cubli_mode(cubliMode,ov);
 
@@ -70,6 +76,16 @@ if cubliPreset == "wheel_stop" || cubliPreset == "wheel_stop_yaw"
         'Cubli:SolverStep','The 0.25 ms solver step did not take.');
     fprintf(['%s preset: contact solver set to 0.25 ms on the block ' ...
         '(it is baked at build time).\n'],cubliPreset);
+elseif cubliPreset == "edge_low_speed"
+    set_param([model '/Solver Configuration'], ...
+        'MultibodyLocalSolverChoice','ODE5', ...
+        'MultibodyLocalSolverSampleTime','0.000125');
+    assert(strcmp(get_param([model '/Solver Configuration'], ...
+        'MultibodyLocalSolverChoice'),'ODE5') && ...
+        strcmp(get_param([model '/Solver Configuration'], ...
+        'MultibodyLocalSolverSampleTime'),'0.000125'), ...
+        'Cubli:SolverSetting','The edge_low_speed solver setting did not take.');
+    fprintf('edge_low_speed preset: contact solver ODE5 @ 0.125 ms.\n');
 end
 
 fprintf('\nRunning "%s" with preset "%s": %.1f s.\n\n', ...
@@ -89,7 +105,7 @@ end
 % 于是真实姿态还水平时它就读出几度。两个都打印，差别才看得见。
 cubli_report = cubli_run_report(out.get('cubli_com'),out.get('cubli_rate'), ...
     out.get('cubli_tau_x'),out.get('cubli_tau_y'),out.get('cubli_tau_z'), ...
-    out.get('cubli_penetration'),P,out.get('cubli_R'));
+    out.get('cubli_penetration'),P,out.get('cubli_R'),out.get('cubli_wy'));
 assignin('base','cubli_report',cubli_report);
 
 % 长跑会**合法地**判失败，这里说清楚，免得第一次用的人以为坏了。
