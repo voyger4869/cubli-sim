@@ -846,6 +846,9 @@ P.run.wheelStop.YawRateRef = 0;
 % See docs/06 for 300 s stand-to-edge traces and the solver sensitivity.
 P.run.edgeLowSpeed.KiEdge = 8e-5;
 P.run.edgeLowSpeed.wheelTailMax = 20; % rad/s, final 10 s of a long run
+% A separate near-zero candidate accepts a longer capture transient to unload
+% the Y wheel more completely. Its validation envelope is in docs/06.
+P.run.edgeNearZero.KiEdge = 1e-3;
 
 % Every controller constant, as one vector fed to the controller block from a
 % Constant whose value is the workspace expression P.run.ctrl. Baked-in

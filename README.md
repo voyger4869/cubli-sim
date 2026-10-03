@@ -74,11 +74,15 @@ Balance is selected with `P.run.balancePreset`:
 | `wheel_stop` | settles at 40–60 rad/s | needs the contact solver at 0.25 ms |
 | `wheel_stop_yaw` | as above, plus a gentle yaw hold | halves the slow yaw drift |
 | `edge_low_speed` | about 6–8 rad/s on the Y wheel from 30–300 s after stand-up | experimental; edge modes only; ODE5 @ 0.125 ms |
+| `edge_near_zero` | Y wheel −0.73 to +1.73 rad/s in the final 30 s of a 300 s stand-up run | experimental; 2.28 s capture; edge modes only; ODE5 @ 0.125 ms |
 
 To try the low-speed edge run, set `cubliMode = "stand_to_edge"`,
 `cubliPreset = "edge_low_speed"`, and `cubliSeconds = 300` in
 `src/core/run_cubli_clean.m`. For a measured pass/fail check, run
 `setup_cubli` followed by `verify_edge_low_speed("stand_to_edge",30)`.
+For the near-zero candidate, select `cubliPreset = "edge_near_zero"` and run
+`verify_edge_near_zero("stand_to_edge",300)`. The contact position and yaw still
+drift, and changing the contact solver step changes the measured wheel speed.
 
 ## This project documents what does *not* work
 

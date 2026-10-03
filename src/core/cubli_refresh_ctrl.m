@@ -77,6 +77,12 @@ switch P.run.balancePreset
             'edge_low_speed supports edge_balance and stand_to_edge only.');
         KiE = P.run.edgeLowSpeed.KiEdge; KiP = 0;
         tiltSrc = 0; lamW = 0; KyawE = 0;
+    case "edge_near_zero"
+        assert(ismember(P.run.mode,["edge_balance","stand_to_edge"]), ...
+            'CubliClean:EdgeNearZeroMode', ...
+            'edge_near_zero supports edge_balance and stand_to_edge only.');
+        KiE = P.run.edgeNearZero.KiEdge; KiP = 0;
+        tiltSrc = 0; lamW = 0; KyawE = 0;
     otherwise
         error('CubliClean:UnknownBalancePreset', ...
             'Unknown P.run.balancePreset "%s".',P.run.balancePreset);

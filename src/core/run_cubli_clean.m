@@ -37,6 +37,9 @@ cubliMode = "edge_balance";
 %   "edge_low_speed" 棱平衡专用实验预设：轮速积分增益 8e-5，自动选 ODE5 @ 0.125 ms。
 %                    从平放起立约 1.17 s；300 s 时 Y 轮约 7.5 rad/s。
 %                    求解器敏感性和接触位移限制见 docs/06。
+%   "edge_near_zero" 棱平衡专用近零轮速实验预设：KiEdge=1e-3，ODE5 @ 0.125 ms。
+%                    连续稳定捕获约 2.28 s；300 s 最末 30 s Y 轮约 -0.73 到 +1.73 rad/s。
+%                    接触位移、偏航及步长敏感性仍未解决，见 docs/06。
 % ---------------------------------------------------------------------------
 cubliPreset = "fast";
 
@@ -54,7 +57,7 @@ if ~isempty(cubliSeconds)
                'run.point.duration',cubliSeconds; ...
                'run.flatchain.duration',cubliSeconds; ...
                'run.directjump.duration',cubliSeconds}];
-    if cubliPreset == "edge_low_speed"
+    if cubliPreset == "edge_low_speed" || cubliPreset == "edge_near_zero"
         ov = [ov; {'run.standup.duration',cubliSeconds}];
     end
 end
@@ -76,7 +79,7 @@ if cubliPreset == "wheel_stop" || cubliPreset == "wheel_stop_yaw"
         'Cubli:SolverStep','The 0.25 ms solver step did not take.');
     fprintf(['%s preset: contact solver set to 0.25 ms on the block ' ...
         '(it is baked at build time).\n'],cubliPreset);
-elseif cubliPreset == "edge_low_speed"
+elseif cubliPreset == "edge_low_speed" || cubliPreset == "edge_near_zero"
     set_param([model '/Solver Configuration'], ...
         'MultibodyLocalSolverChoice','ODE5', ...
         'MultibodyLocalSolverSampleTime','0.000125');
@@ -84,8 +87,8 @@ elseif cubliPreset == "edge_low_speed"
         'MultibodyLocalSolverChoice'),'ODE5') && ...
         strcmp(get_param([model '/Solver Configuration'], ...
         'MultibodyLocalSolverSampleTime'),'0.000125'), ...
-        'Cubli:SolverSetting','The edge_low_speed solver setting did not take.');
-    fprintf('edge_low_speed preset: contact solver ODE5 @ 0.125 ms.\n');
+        'Cubli:SolverSetting','The edge low-speed solver setting did not take.');
+    fprintf('%s preset: contact solver ODE5 @ 0.125 ms.\n',cubliPreset);
 end
 
 fprintf('\nRunning "%s" with preset "%s": %.1f s.\n\n', ...
