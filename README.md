@@ -1,162 +1,135 @@
-# Cubli — 3D simulation of a reaction-wheel cube
+# Cubli Sim
 
-A physics simulation of a **Cubli** (a cube that balances, and stands itself up, using three
-reaction wheels) in MATLAB/Simulink + Simscape Multibody.
+**A code-generated, 3D reaction-wheel cube simulation built with MATLAB, Simulink, and Simscape Multibody.** The cube can balance on an edge or vertex, stand up from a flat face, and attempt a face-by-face walk. Its wheels, free body, and ground contact are simulated; motion is produced by the controller rather than a prerecorded animation.
 
-Everything runs on **real contact** — a penalty-method `Spatial Contact Force` between the cube
-and the ground, three motorised wheels, and measured state. No idealised support joints, no
-pre-recorded animation. The cube begins lying flat on the ground and stands up onto its edge
-and onto a corner by physically tipping itself over.
+**Language:** [English](README.md) · [简体中文](README.zh-CN.md)
 
-> **The documentation is in Chinese.** This README is in English so the project can be found and
-> understood; the detailed docs (including every measurement and every failed approach) are in
-> [`docs/`](docs/). Start with [`docs/01_项目状态.md`](docs/01_项目状态.md) — the project status.
-> The [`architecture and development guide`](docs/05_架构与开发指南.md) explains the build,
-> runtime flow, control modes, verification criteria, and development roadmap.
-> The [`edge low-speed study`](docs/06_棱平衡低轮速控制设计.md) records the new selectable preset,
-> 300 s stand-up run, and solver sensitivity.
-> The [`near-zero wheel-speed development log`](docs/07_近零轮速改进开发全过程.md) continues that study
-> with each trial, failed approach, measurement correction, and release check.
->
-> **On the script names inside those docs.** The docs were written during development and cite
-> the experiment that produced each number, e.g. *"出处：`src/experiments/exp_yawcause.m`"*.
-> This release ships the **run and verification** code only, so a number of those experiment and
-> diagnostic scripts are **not included here** (about 65 names). They exist in the full
-> development tree. Every number quoted in the docs was produced by one of them and is
-> reproducible from the parameter file; the citations are provenance, not links.
-
----
-
-## Requirements
-
-- MATLAB **R2024b**
-- Simulink, Simscape, **Simscape Multibody**
+> **Project scope:** this is a simulation and control research project. Results below refer to the stated model and solver settings; they are not hardware performance claims. The full development history and failed experiments are documented in [`docs/`](docs/).
 
 ## Quick start
 
-```matlab
-% from the project root
-setup_cubli          % put src/ on the path (once per session)
-run_cubli_clean      % press Run
+### 1. Requirements
+
+- MATLAB **R2024b** (the version used for development and verification)
+- **Simulink**, **Simscape**, and **Simscape Multibody**
+
+Clone or download the repository:
+
+```bash
+git clone https://github.com/voyger4869/cubli-sim.git
+cd cubli-sim
 ```
 
-`run_cubli_clean.m` has two settings at the top; changing them does **not** require regenerating
-the model:
+Set MATLAB's **Current Folder** to that repository root, where `setup_cubli.m` lives. **For a first, shorter run**, open [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m) and set its three top-level choices to:
 
 ```matlab
-cubliMode    = "edge_balance";   % which capability
-cubliPreset  = "fast";           % which balance law
-cubliSeconds = 90;
+cubliMode    = "edge_balance";
+cubliPreset  = "fast";
+cubliSeconds = 10;
 ```
 
-To watch several capabilities run off **one** built model (this is the point of the architecture):
+The committed defaults are `edge_balance`, `fast`, and **90 s**. Now run in the MATLAB Command Window:
 
 ```matlab
-cubli_demo
+setup_cubli
+run_cubli_clean
 ```
 
-## What it does
+The entry script calls `setup_cubli` itself, so the first command is optional when you run that script. It makes the path setup explicit and is needed before calling verification functions directly. The generated Simulink model opens, the script runs the simulation and prints a report, and signals such as `cubli_com`, `cubli_R`, `cubli_wx` / `cubli_wy` / `cubli_wz`, and `cubli_report` appear in the MATLAB workspace. Generated models and simulation artifacts are ignored by Git.
 
-| Capability | `cubliMode` | Status |
+### 2. Choose an experiment
+
+Edit the same three lines and rerun `run_cubli_clean`:
+
+| Goal | `cubliMode` | `cubliPreset` | `cubliSeconds` |
+|---|---|---|---:|
+| Inspect basic edge balance | `"edge_balance"` | `"fast"` | `10` |
+| Stand from flat to edge, then keep wheel speed near zero | `"stand_to_edge"` | `"edge_near_zero"` | `300` |
+| Run the full flat → edge → vertex sequence | `"flat_to_point"` | `"fast"` | `[]` |
+
+`[]` uses the mode's own default duration. **Current duration override is mode-specific:** a nonempty `cubliSeconds` applies to `edge_balance`, `point_balance`, `flat_to_point`, and `flat_to_point_direct`; for `stand_to_edge` it applies when the preset is `edge_low_speed` or `edge_near_zero`. Other modes keep their parameter-file duration. The entry script selects and checks the required contact-solver configuration for the wheel-speed presets.
+
+To see **one built model** run multiple modes without regeneration between simulations, use `cubli_demo` after `setup_cubli`. In contrast, `run_cubli_clean` deliberately regenerates its model each time it is run; you do not need to build or edit the `.slx` manually.
+
+## What works today
+
+All capabilities use the same free-contact plant. “Passes” refers to the project's current simulation checks, not an unlimited-duration guarantee.
+
+| Capability | Mode | Current status |
 |---|---|---|
-| Flat → stand up onto an edge | `stand_to_edge` | **passes** |
-| Balance on an edge, 10 s | `edge_balance` | **passes** |
-| Balance on a corner (vertex), 10 s | `point_balance` | **passes** (capture band ≈20°) |
-| Edge → vertex (the second hop) | `edge_to_point` | **passes** (3 runs, bit-identical) |
-| **Flat → edge → vertex → hold** | `flat_to_point` | **passes** — the headline result |
-| Flat → vertex in one motion | `flat_to_point_direct` | experimental, not promoted |
-| Walking, one face at a time | `walk` | **does not pass** — the gait works, the checks don't |
-| Flat → vertex (impulse route) | `stand_to_point` | **fails** — rotor runs to 3129 rad/s |
+| Balance from an initial edge attitude | `edge_balance` | Passes the short-run check |
+| Flat face → edge → balance | `stand_to_edge` | Passes |
+| Balance from an initial vertex attitude | `point_balance` | Passes the 10 s check |
+| Edge → vertex | `edge_to_point` | Passes |
+| **Flat face → edge → vertex → hold** | `flat_to_point` | Passes; complete two-stage stand-up |
+| Flat face → vertex directly | `flat_to_point_direct` | Passes its current check; still experimental |
+| Face-by-face walking | `walk` | Moves, but fails step-count/penetration checks |
+| Impulse-based flat → vertex | `stand_to_point` | Fails; wheel speed exceeds the budget |
 
-Balance is selected with `P.run.balancePreset`:
+`verify_cubli` checks all eight modes with the verified `fast` preset. **Six pass; `walk` and `stand_to_point` are known failures.** See [status](docs/01_项目状态.md) and [failure analysis](docs/03_未解决与已证伪.md) for the exact limits.
 
-| Preset | Rotor | Notes |
+## Edge-balance wheel-speed presets
+
+Select a preset with `cubliPreset` in the entry script. The figures below refer to the **Y wheel during edge balance** under each stated solver configuration. `edge_low_speed` and `edge_near_zero` are restricted to `edge_balance` and `stand_to_edge`.
+
+| Preset | Observed behavior | Contact solver / scope |
 |---|---|---|
-| `fast` | climbs to ~950 rad/s, then **freezes** | the verified behaviour |
-| `wheel_stop` | settles at 40–60 rad/s | needs the contact solver at 0.25 ms |
-| `wheel_stop_yaw` | as above, plus a gentle yaw hold | halves the slow yaw drift |
-| `edge_low_speed` | about 6–8 rad/s on the Y wheel from 30–300 s after stand-up | experimental; edge modes only; ODE5 @ 0.125 ms |
-| `edge_near_zero` | Y wheel −0.73 to +1.73 rad/s in the final 30 s of a 300 s stand-up run | experimental; 2.28 s capture; edge modes only; ODE5 @ 0.125 ms |
+| `fast` | Fast capture; Y wheel can climb to roughly 950 rad/s before leveling off | Original reference behavior |
+| `wheel_stop` | Y wheel around 40–60 rad/s in recorded edge runs | 0.25 ms local step |
+| `wheel_stop_yaw` | Adds gentle yaw control; X/Z wheels accumulate speed over time | 0.25 ms local step |
+| `edge_low_speed` | Y wheel roughly 6–8 rad/s from 30–300 s after stand-up | Experimental; ODE5 @ 0.125 ms |
+| `edge_near_zero` | At 300 s, final 30 s Y-wheel range **−0.73 to +1.73 rad/s**, mean **+0.56 rad/s**; stable edge capture in **2.278 s** | Experimental; ODE5 @ 0.125 ms |
 
-To try the low-speed edge run, set `cubliMode = "stand_to_edge"`,
-`cubliPreset = "edge_low_speed"`, and `cubliSeconds = 300` in
-`src/core/run_cubli_clean.m`. For a measured pass/fail check, run
-`setup_cubli` followed by `verify_edge_low_speed("stand_to_edge",30)`.
-For the near-zero candidate, select `cubliPreset = "edge_near_zero"` and run
-`verify_edge_near_zero("stand_to_edge",300)`. The contact position and yaw still
-drift, and changing the contact solver step changes the measured wheel speed.
+The near-zero result is **not** a proof that the wheel converges exactly to zero: yaw and contact-position drift remain, and the numbers change when the contact-solver step changes. The measured improvement, failed trials, and solver comparison are in [the low-speed study](docs/06_棱平衡低轮速控制设计.md) and [development log](docs/07_近零轮速改进开发全过程.md).
 
-## This project documents what does *not* work
+## Verify a result
 
-Most simulation repos show only the happy path. This one keeps the failures, with numbers:
-
-- **[`docs/03_未解决与已证伪.md`](docs/03_未解决与已证伪.md)** — what is still unsolved, every
-  approach that was tried and falsified, and a record of **three conclusions that were reported
-  and then retracted** (each one because a measurement was read the wrong way).
-- The balance presets differ because `fast` **cannot** hold the rotor near zero:
-  a proportional law drives its own torque to zero at the balance point, so the rotor freezes
-  wherever the entry transient left it. That is a conservation argument, not a tuning problem.
-
-Three things are worth knowing before you read any number here:
-
-1. **The plant is not numerically converged.** The historical ODE3 configuration falls when
-   halving the contact step from 0.25 to 0.125 ms. The new ODE5 edge preset stays upright at
-   0.25, 0.125, and 0.0625 ms for 120 s, but its wheel speed and yaw are still step sensitive.
-   See [the measurements](docs/06_棱平衡低轮速控制设计.md).
-2. **Every contact-related number must be quoted with its solver setting.** Ideal-joint and
-   contact models in this project run on different integrators and are not comparable.
-3. **The balance drifts.** It is stable for minutes, not indefinitely — the *tilt* reaches its
-   limit before the rotor speed does.
-
-## Repository layout
-
-```
-.
-├── README.md                     this file
-├── LICENSE
-├── setup_cubli.m                 path setup (run once per session)
-├── cubli_root.m                  locates the project root for every script
-├── src/
-│   ├── core/                     parameters, mode dispatch, the plant builder, the report,
-│   │                             run_cubli_clean.m (entry) and cubli_demo.m
-│   └── verification/             acceptance and regression checks
-└── docs/                         Chinese: status, evidence, failures, measurements
-    └── history/                  earlier stage documents, archived verbatim
-```
-
-Generated files (`.slx`, `.slxc`, `slprj/`, snapshot `.mat`) are gitignored — see
-[.gitignore](.gitignore). The model is rebuilt from the parameter file on every run.
-
-**The parameter file is the documentation.** [`src/core/cubli_clean_parameters.m`](src/core/cubli_clean_parameters.m)
-carries a written justification next to every value — why it is what it is, the measurement it came
-from, and which earlier conclusion it replaced. If you want to change behaviour, that is the file
-to read and the only file you need to edit.
-
-### Verification
+Run these from the repository root after `setup_cubli`:
 
 ```matlab
-verify_cubli                 % every mode, with the acceptance verdict
-verify_walk_directions       % the four walking directions, checked by displacement
-verify_preset_snapshot("a"); ...; verify_preset_snapshot("b");
-verify_preset_compare("a","b")   % bit-exact by default
+verify_cubli                                % eight modes; two known failures
+verify_edge_low_speed("stand_to_edge",30)   % quick low-speed check
+verify_edge_near_zero("stand_to_edge",300)  % long near-zero check
+verify_edge_near_zero("edge_balance",120)   % starts on the edge
 ```
 
-`verify_cubli` is expected to report two failures (`walk`, `stand_to_point`), both documented.
-`verify_preset_compare` defaults to a tolerance of **zero**: the verified preset is supposed to be
-untouched by edits that do not mean to touch it.
+The near-zero verifier checks the solver block, continuous edge capture, edge-frame attitude, Y-wheel tail statistics, and the combined speed of **all three wheels**. The 300 s run is intentionally long. For controlled before/after comparisons of the original behavior, see `verify_preset_snapshot` and `verify_preset_compare` in [`src/verification/`](src/verification/).
 
-## Design notes
+## How the project is organized
 
-- **One plant, many modes.** A single model serves every capability; the mode, the initial
-  condition, the stop time and all control constants are read as workspace expressions, so
-  switching capability is a variable change, not a rebuild.
-- **Generated files are not committed.** The `.slx` is built by [`build_cubli_clean_cubli.m`](src/core/build_cubli_clean_cubli.m)
-  on every run and is regenerated from the parameter file.
-- **The report judges the quantity that the controller controls**, and says so: for the edge it
-  uses `asin(com_x/d)`, the same reconstruction the law uses — while noting that on this plant
-  that quantity measures *sliding* as much as tilting, so the attitude-derived tilt is computed
-  and printed alongside it.
+```mermaid
+flowchart LR
+    A["run_cubli_clean<br/>mode · preset · duration"] --> B["cubli_mode<br/>initial state + parameters"]
+    B --> C["build_cubli_clean_cubli<br/>generate Simulink model"]
+    C --> D["sim<br/>contact + wheels + controller"]
+    D --> E["cubli_run_report<br/>signals + verdict"]
+```
+
+| Path | Purpose |
+|---|---|
+| [`setup_cubli.m`](setup_cubli.m) | Adds the source folders to MATLAB's path |
+| [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m) | Main entry and experiment selection |
+| [`src/core/cubli_clean_parameters.m`](src/core/cubli_clean_parameters.m) | Physical parameters, controller gains, mode defaults, and rationale |
+| [`src/core/cubli_mode.m`](src/core/cubli_mode.m) | Derives the selected mode's initial state and stop time |
+| [`src/core/build_cubli_clean_cubli.m`](src/core/build_cubli_clean_cubli.m) | Generates the single free-contact plant and controller |
+| [`src/verification/`](src/verification/) | Acceptance and regression scripts |
+
+The release contains the runnable plant and verification scripts. The larger development tree also contains experimental rigs and scripts cited by the historical documents; those are not all part of this release.
+
+## Documentation
+
+| Read | For |
+|---|---|
+| [01 · Project status](docs/01_项目状态.md) | Current capabilities and open problems |
+| [02 · Test protocol](docs/02_测试协议.md) | Acceptance criteria and measurement evidence |
+| [03 · Unresolved and falsified approaches](docs/03_未解决与已证伪.md) | Failures, corrections, and known pitfalls |
+| [04 · Measurement record](docs/04_测量记录.md) | Recorded experiments |
+| [05 · Architecture and development guide](docs/05_架构与开发指南.md) | Model construction, data flow, control logic, and development workflow |
+| [06 · Edge low-speed study](docs/06_棱平衡低轮速控制设计.md) | Low-speed presets and solver sensitivity |
+| [07 · Near-zero development log](docs/07_近零轮速改进开发全过程.md) | Full sequence of trials, setbacks, fixes, and release checks |
+
+The contact model has **not demonstrated numerical convergence** across local solver steps. Long runs also show yaw and contact-position drift; wheel-speed improvements should always be read with those measurements and solver settings. This remains a simulation result, not a validated hardware controller.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE).
