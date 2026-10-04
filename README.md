@@ -8,7 +8,7 @@
 
 **Start here:** [Quick start](#quick-start) · [Current capabilities](#what-works-today) · [How it works](#how-the-project-is-organized) · [Development records](#documentation)
 
-> **Current status:** six of the eight baseline modes pass their simulation checks. String-directed walking is a separate experiment: tested routes complete their requested steps, while contact penetration and some route errors remain unresolved. All results are for the documented simulation and solver settings, not hardware performance.
+> **Current status:** six of the eight baseline modes pass their simulation checks. Experimental low-speed presets now cover edge and vertex balance; string-directed walking completes tested routes but still has contact and route errors. Results apply to the documented simulation and solver settings, not hardware performance.
 
 ---
 
@@ -51,6 +51,7 @@ Edit the mode, preset, and duration and rerun `run_cubli_clean`. Route mode also
 |---|---|---|---:|
 | Inspect basic edge balance | `"edge_balance"` | `"fast"` | `10` |
 | Stand from flat to edge, then keep wheel speed near zero | `"stand_to_edge"` | `"edge_near_zero"` | `300` |
+| Balance on a vertex with low three-wheel speed (experimental) | `"point_balance"` | `"point_near_zero"` | `120` |
 | Run the full flat → edge → vertex sequence | `"flat_to_point"` | `"fast"` | `[]` |
 | Try a four-step route (experimental) | `"walk_route"` | `"fast"` | `[]` |
 
@@ -66,7 +67,7 @@ All capabilities use the same free-contact plant. “Passes” refers to the pro
 |---|---|---|
 | Balance from an initial edge attitude | `edge_balance` | Passes the short-run check |
 | Flat face → edge → balance | `stand_to_edge` | Passes |
-| Balance from an initial vertex attitude | `point_balance` | Passes the 10 s check |
+| Balance from an initial vertex attitude | `point_balance` | Passes the 10 s check; separate low-speed presets are experimental |
 | Edge → vertex | `edge_to_point` | Passes |
 | **Flat face → edge → vertex → hold** | `flat_to_point` | Passes; complete two-stage stand-up |
 | Flat face → vertex directly | `flat_to_point_direct` | Passes its current check; still experimental |
@@ -104,6 +105,10 @@ Select a preset with `cubliPreset` in the entry script. The figures below refer 
 
 The near-zero result is **not** a proof that the wheel converges exactly to zero: yaw and contact-position drift remain, and the numbers change when the contact-solver step changes. The measured improvement, failed trials, and solver comparison are in [the low-speed study](docs/06_棱平衡低轮速控制设计.md) and [development log](docs/07_近零轮速改进开发全过程.md).
 
+### Vertex low-speed presets
+
+`point_low_speed` and `point_near_zero` currently support **`point_balance` only**. They add small proportional feedback from all three wheel speeds after the existing vertex attitude controller. With a 3° initial roll and ODE5 @ 0.125 ms, the three-wheel speed norm over the last 10 s of a 60 s run peaked at **5.41** and **2.32 rad/s**, respectively. The latter also held for 300 s under the same setting. Other local solver steps give different residual speeds, so these remain experimental, solver-specific results. See the [vertex development record](docs/09_顶点低轮速控制实验.md).
+
 ## Verify a result
 
 Run these from the repository root after `setup_cubli`:
@@ -114,6 +119,7 @@ verify_edge_low_speed("stand_to_edge",30)   % quick low-speed check
 verify_edge_near_zero("stand_to_edge",300)  % long near-zero check
 verify_edge_near_zero("edge_balance",120)   % starts on the edge
 verify_walk_route                            % five route motion and wheel-speed trials
+verify_point_speed("point_near_zero",120,3,0) % vertex, 3-degree initial roll
 ```
 
 The near-zero verifier checks the solver block, continuous edge capture, edge-frame attitude, Y-wheel tail statistics, and the combined speed of **all three wheels**. The 300 s run is intentionally long. For controlled before/after comparisons of the original behavior, see `verify_preset_snapshot` and `verify_preset_compare` in [`src/verification/`](src/verification/).
@@ -151,6 +157,7 @@ The release contains the runnable plant and verification scripts. The larger dev
 | [06 · Edge low-speed study](docs/06_棱平衡低轮速控制设计.md) | Low-speed presets and solver sensitivity |
 | [07 · Near-zero development log](docs/07_近零轮速改进开发全过程.md) | Full sequence of trials, setbacks, fixes, and release checks |
 | [08 · String-directed walking](docs/08_字符串路线行走开发记录.md) | Route syntax, turning logic, measured results, and unresolved contact error |
+| [09 · Vertex low-speed control](docs/09_顶点低轮速控制实验.md) | Three-wheel speed feedback, failed trials, solver sensitivity, and limits |
 
 The contact model has **not demonstrated numerical convergence** across local solver steps. Long runs also show yaw and contact-position drift; wheel-speed improvements should always be read with those measurements and solver settings. This remains a simulation result, not a validated hardware controller.
 

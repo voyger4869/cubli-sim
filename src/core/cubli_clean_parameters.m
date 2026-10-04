@@ -873,6 +873,16 @@ P.run.edgeLowSpeed.wheelTailMax = 20; % rad/s, final 10 s of a long run
 % the Y wheel more completely. Its validation envelope is in docs/06.
 P.run.edgeNearZero.KiEdge = 1e-3;
 
+% Experimental vertex rotor-speed damping. Keep this separate from KiPoint:
+% the old per-wheel speed INTEGRAL destabilized the vertex in the recorded
+% trials. The proportional term starts at zero in every existing preset.
+% On ODE5 @ 0.125 ms, 3e-5 parks the 3-wheel norm near 5.4 rad/s at 60 s;
+% 7e-5 parks it near 2.3. Both remain solver-sensitive (see docs/09).
+P.run.pointLowSpeed.Kw = 3e-5;   % N*m*s/rad
+P.run.pointNearZero.Kw = 7e-5;   % N*m*s/rad
+P.run.pointLowSpeed.wheelTailMax = 6;  % 3-wheel norm, rad/s
+P.run.pointNearZero.wheelTailMax = 3;  % 3-wheel norm, rad/s
+
 % Every controller constant, as one vector fed to the controller block from a
 % Constant whose value is the workspace expression P.run.ctrl. Baked-in
 % literals would mean changing a gain silently did nothing until the .slx was

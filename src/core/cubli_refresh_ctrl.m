@@ -56,6 +56,7 @@ end
 % forms tried (with Kw>0 it runs the rotor to -1665, with the rotor integral it
 % tips by 80 s, with Kw=0 it falls in 30 s). The com loop is the only one that
 % holds the cube up, so wheel_stop keeps it and fixes the climb elsewhere.
+pointKw = 0;
 switch P.run.balancePreset
     case "fast"
         KiE = 0;  KiP = 0;  tiltSrc = 0;  lamW = 0;  KyawE = 0;
@@ -83,6 +84,18 @@ switch P.run.balancePreset
             'edge_near_zero supports edge_balance and stand_to_edge only.');
         KiE = P.run.edgeNearZero.KiEdge; KiP = 0;
         tiltSrc = 0; lamW = 0; KyawE = 0;
+    case "point_low_speed"
+        assert(P.run.mode == "point_balance", ...
+            'CubliClean:PointLowSpeedMode', ...
+            'point_low_speed currently supports point_balance only.');
+        KiE = 0; KiP = 0; tiltSrc = 0; lamW = 0; KyawE = 0;
+        pointKw = P.run.pointLowSpeed.Kw;
+    case "point_near_zero"
+        assert(P.run.mode == "point_balance", ...
+            'CubliClean:PointNearZeroMode', ...
+            'point_near_zero currently supports point_balance only.');
+        KiE = 0; KiP = 0; tiltSrc = 0; lamW = 0; KyawE = 0;
+        pointKw = P.run.pointNearZero.Kw;
     otherwise
         error('CubliClean:UnknownBalancePreset', ...
             'Unknown P.run.balancePreset "%s".',P.run.balancePreset);
@@ -125,6 +138,9 @@ P.run.ctrl = [P.geometry.edgeHeight; P.run.edge.Kp; P.run.edge.Kd; ...
               P.run.walk.wheel; P.run.walk.sign; ...
               KiE; KiP; tiltSrc; lamW; P.run.edge.torqueDeadband; ...
               P.run.edge.KiTilt; KyawE; radPerDeg*P.run.wheelStop.YawRateRef];
+assert(isfinite(pointKw) && abs(pointKw) <= 0.01, ...
+    'CubliClean:PointSpeedGain','Vertex speed gain must be finite and small.');
+P.run.pointSpeed.ctrl = pointKw;
 % Separate fixed-size route input keeps the legacy 58-value ctrl vector and
 % all existing mode-code indices intact. The route is validated for every
 % mode, so a bad command cannot silently enter a later route run.

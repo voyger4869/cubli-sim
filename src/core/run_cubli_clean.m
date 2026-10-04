@@ -45,6 +45,9 @@ cubliRoute = "RLUD";
 %   "edge_near_zero" 棱平衡专用近零轮速实验预设：KiEdge=1e-3，ODE5 @ 0.125 ms。
 %                    连续稳定捕获约 2.28 s；300 s 最末 30 s Y 轮约 -0.73 到 +1.73 rad/s。
 %                    接触位移、偏航及步长敏感性仍未解决，见 docs/06。
+%   "point_low_speed" 顶点平衡专用实验预设：三轮速度比例反馈，ODE5 @ 0.125 ms。
+%   "point_near_zero" 顶点平衡专用近零预设；300 s 试验末段三轮合成约 2.32 rad/s。
+%                    两者目前只支持 point_balance；求解器敏感性见 docs/09。
 % ---------------------------------------------------------------------------
 cubliPreset = "fast";
 
@@ -73,7 +76,8 @@ model = build_cubli_clean_cubli();
 % 接触求解器步长是**建模型时烤进去的**：build_cubli_clean_cubli 自己调用
 % cubli_clean_parameters()，并把数字作为字面量写进 Solver Configuration 块，
 % 所以在已经建好的模型上再改 P.sim.localSolver 是无效的。
-% 两套带转速环的预设需要 0.25 ms，因此在这里对块设置。
+% wheel_stop 两套预设需要 0.25 ms；棱/顶点低轮速实验预设使用 ODE5 @ 0.125 ms。
+% 因此在这里直接设置求解器块，并回读确认。
 % 后面那句回读断言不是装饰——**一个静默没生效的求解器设置，看起来和"这个设置没影响"一模一样**，
 % 而这一条在本项目上浪费过真实时间。
 if cubliPreset == "wheel_stop" || cubliPreset == "wheel_stop_yaw"
@@ -84,7 +88,8 @@ if cubliPreset == "wheel_stop" || cubliPreset == "wheel_stop_yaw"
         'Cubli:SolverStep','The 0.25 ms solver step did not take.');
     fprintf(['%s preset: contact solver set to 0.25 ms on the block ' ...
         '(it is baked at build time).\n'],cubliPreset);
-elseif cubliPreset == "edge_low_speed" || cubliPreset == "edge_near_zero"
+elseif ismember(cubliPreset,["edge_low_speed","edge_near_zero", ...
+        "point_low_speed","point_near_zero"])
     set_param([model '/Solver Configuration'], ...
         'MultibodyLocalSolverChoice','ODE5', ...
         'MultibodyLocalSolverSampleTime','0.000125');
@@ -92,7 +97,7 @@ elseif cubliPreset == "edge_low_speed" || cubliPreset == "edge_near_zero"
         'MultibodyLocalSolverChoice'),'ODE5') && ...
         strcmp(get_param([model '/Solver Configuration'], ...
         'MultibodyLocalSolverSampleTime'),'0.000125'), ...
-        'Cubli:SolverSetting','The edge low-speed solver setting did not take.');
+        'Cubli:SolverSetting','The low-speed solver setting did not take.');
     fprintf('%s preset: contact solver ODE5 @ 0.125 ms.\n',cubliPreset);
 end
 

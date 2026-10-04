@@ -118,6 +118,37 @@ switch P.run.mode
             1.5*P.cube.assemblyMass*P.world.gravity/P.contact.normalStiffness;
         report.checks = {'durationOk','endedOnVertex','stayedOnVertex', ...
                          'penetrationOk'};
+        if P.run.mode == "point_balance" && ...
+                ismember(P.run.balancePreset,["point_low_speed","point_near_zero"])
+            assert(~isempty(Rrot) && ~isempty(wheelX) && ...
+                ~isempty(wheelY) && ~isempty(wheelZ), ...
+                'CubliClean:PointSpeedLogs', ...
+                'Point speed presets require attitude and all three wheel logs.');
+            wx = localAlignedLog(wheelX,1,t);
+            wy = localAlignedLog(wheelY,1,t);
+            wz = localAlignedLog(wheelZ,1,t);
+            rr = localAlignedLog(Rrot,9,t);
+            Rv = reshape(rr,3,3,[]);
+            up = squeeze(pagemtimes(Rv,[1;1;1]/sqrt(3)));
+            tiltDeg = atan2(hypot(up(1,:),up(2,:)),up(3,:))*180/pi;
+            tail = t>=max(0,t(end)-min(10,t(end)/2));
+            wheelNorm = sqrt(wx.^2+wy.^2+wz.^2);
+            report.wheelPeak = [max(abs(wx)),max(abs(wy)),max(abs(wz))];
+            report.wheelNormTailMax = max(wheelNorm(tail));
+            report.wheelNormEnd = wheelNorm(end);
+            report.tiltTailMaxDeg = max(abs(tiltDeg(tail)));
+            report.comXYDrift = norm(c(1:2,end)-c(1:2,1));
+            if P.run.balancePreset == "point_low_speed"
+                wheelLimit = P.run.pointLowSpeed.wheelTailMax;
+            else
+                wheelLimit = P.run.pointNearZero.wheelTailMax;
+            end
+            report.wheelSpeedOk = report.wheelNormTailMax <= wheelLimit;
+            report.wheelBudgetOk = all(report.wheelPeak <= P.motor.maxSpeed);
+            report.attitudeOk = report.tiltTailMaxDeg <= 2;
+            report.checks = [report.checks, ...
+                {'wheelSpeedOk','wheelBudgetOk','attitudeOk'}];
+        end
     case "walk_route"
         assert(~isempty(routeLog) && ~isempty(wheelX) && ...
             ~isempty(wheelY) && ~isempty(wheelZ),'CubliClean:RouteLog', ...
@@ -285,6 +316,12 @@ elseif ismember(P.run.mode, ...
     fprintf(['Cubli %s: tEnd=%.3f  comZ %.5f -> %.5f (max %.5f)  ' ...
         'tauPeak=[%.4f %.4f %.4f]\n'], ...
         P.run.mode, report.tEnd, c(3,1), c(3,end), max(c(3,:)), report.tauPeak);
+    if isfield(report,'wheelNormTailMax')
+        fprintf(['  three-wheel |w| end %.3f, tail max %.3f rad/s; ' ...
+            'tilt tail max %.3f deg; XY drift %.1f mm\n'], ...
+            report.wheelNormEnd,report.wheelNormTailMax, ...
+            report.tiltTailMaxDeg,1000*report.comXYDrift);
+    end
 elseif strcmp(P.run.mode,"walk")
     fprintf(['Cubli %s: tEnd=%.3f  %d commanded steps -> %.2f faces  ' ...
         'travel %.2f sides  flat %.0f%% of the run\n'], ...
@@ -343,4 +380,13 @@ att = (atan2(squeeze(Rm(1,3,:)).',squeeze(Rm(3,3,:)).') - pi/4)*180/pi;
 report.tiltAttDeg     = att;
 report.tiltAttEndDeg  = att(end);
 report.tiltAttPeakDeg = max(abs(att(win)));
+end
+
+function v = localAlignedLog(ts,n,t)
+% Most plant logs share a time axis. Avoid copying long attitude traces through
+% interp1 when they are already aligned; a 120 s run can exhaust MATLAB memory.
+v = cubli_log_reshape(ts,n);
+if ~isequal(ts.Time(:),t(:))
+    v = interp1(ts.Time(:),v.',t(:)).';
+end
 end
