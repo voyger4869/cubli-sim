@@ -52,10 +52,11 @@ Edit the mode, preset, and duration and rerun `run_cubli_clean`. Route mode also
 | Inspect basic edge balance | `"edge_balance"` | `"fast"` | `10` |
 | Stand from flat to edge, then keep wheel speed near zero | `"stand_to_edge"` | `"edge_near_zero"` | `300` |
 | Balance on a vertex with low three-wheel speed (experimental) | `"point_balance"` | `"point_near_zero"` | `120` |
-| Run the full flat → edge → vertex sequence | `"flat_to_point"` | `"fast"` | `[]` |
+| Run flat → edge → vertex, then unload all three wheels | `"flat_to_point"` | `"point_near_zero"` | `120` |
+| Run flat → vertex directly, then unload all three wheels (experimental) | `"flat_to_point_direct"` | `"point_near_zero"` | `60` |
 | Try a four-step route (experimental) | `"walk_route"` | `"fast"` | `[]` |
 
-For the route example, also set `cubliRoute = "RLUD"`; [route syntax and limits](#string-directed-walking) are below. `[]` uses the mode's own default duration. **Current duration override is mode-specific:** a nonempty `cubliSeconds` applies to `edge_balance`, `point_balance`, `flat_to_point`, and `flat_to_point_direct`; for `stand_to_edge` it applies when the preset is `edge_low_speed` or `edge_near_zero`. Other modes keep their parameter-file duration. The entry script selects and checks the required contact-solver configuration for the wheel-speed presets.
+For the route example, also set `cubliRoute = "RLUD"`; [route syntax and limits](#string-directed-walking) are below. `[]` uses the mode's own default duration. **Current duration override is mode-specific:** a nonempty `cubliSeconds` applies to `edge_balance`, `point_balance`, `edge_to_point`, `flat_to_point`, and `flat_to_point_direct`; for `stand_to_edge` it applies when the preset is `edge_low_speed` or `edge_near_zero`. Other modes keep their parameter-file duration. The entry script selects and checks the required contact-solver configuration for the wheel-speed presets.
 
 To see **one built model** run multiple modes without regeneration between simulations, use `cubli_demo` after `setup_cubli`. In contrast, `run_cubli_clean` deliberately regenerates its model each time it is run; you do not need to build or edit the `.slx` manually.
 
@@ -107,7 +108,7 @@ The near-zero result is **not** a proof that the wheel converges exactly to zero
 
 ### Vertex low-speed presets
 
-`point_low_speed` and `point_near_zero` currently support **`point_balance` only**. They add small proportional feedback from all three wheel speeds after the existing vertex attitude controller. With a 3° initial roll and ODE5 @ 0.125 ms, the three-wheel speed norm over the last 10 s of a 60 s run peaked at **5.41** and **2.32 rad/s**, respectively. The latter also held for 300 s under the same setting. Other local solver steps give different residual speeds, so these remain experimental, solver-specific results. See the [vertex development record](docs/09_顶点低轮速控制实验.md).
+`point_low_speed` and `point_near_zero` support **`point_balance`, `edge_to_point`, `flat_to_point`, and `flat_to_point_direct`**. The added wheel-speed feedback engages after vertex capture. For `flat_to_point`, the edge stage first unloads Wheel Y below 10 rad/s before handing over to the vertex controller. At ODE5 @ 0.125 ms, 30 s checks measured three-wheel tail maxima of **5.79 / 2.59 rad/s** for the two presets on `flat_to_point`; `edge_to_point` measured **5.84 / 2.51**, and `flat_to_point_direct` **5.43 / 2.33**. All three stand-up paths passed 120 s checks with `point_near_zero`. `point_balance` with a 3° initial roll measured **5.41 / 2.32 rad/s** at 60 s; the latter also held for 300 s. These are small nonzero residual speeds under a solver-sensitive contact model. `stand_to_point` remains an existing failed stand-up experiment. See the [vertex development record](docs/09_顶点低轮速控制实验.md).
 
 ## Verify a result
 
@@ -120,6 +121,7 @@ verify_edge_near_zero("stand_to_edge",300)  % long near-zero check
 verify_edge_near_zero("edge_balance",120)   % starts on the edge
 verify_walk_route                            % five route motion and wheel-speed trials
 verify_point_speed("point_near_zero",120,3,0) % vertex, 3-degree initial roll
+verify_point_speed("point_near_zero",60,0,0,"flat_to_point") % full stand-up and unloading
 ```
 
 The near-zero verifier checks the solver block, continuous edge capture, edge-frame attitude, Y-wheel tail statistics, and the combined speed of **all three wheels**. The 300 s run is intentionally long. For controlled before/after comparisons of the original behavior, see `verify_preset_snapshot` and `verify_preset_compare` in [`src/verification/`](src/verification/).

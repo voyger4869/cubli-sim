@@ -47,7 +47,8 @@ cubliRoute = "RLUD";
 %                    接触位移、偏航及步长敏感性仍未解决，见 docs/06。
 %   "point_low_speed" 顶点平衡专用实验预设：三轮速度比例反馈，ODE5 @ 0.125 ms。
 %   "point_near_zero" 顶点平衡专用近零预设；300 s 试验末段三轮合成约 2.32 rad/s。
-%                    两者目前只支持 point_balance；求解器敏感性见 docs/09。
+%                    支持 point_balance、edge_to_point、flat_to_point、
+%                    flat_to_point_direct；求解器敏感性见 docs/09。
 % ---------------------------------------------------------------------------
 cubliPreset = "fast";
 
@@ -63,6 +64,7 @@ ov = {'run.balancePreset',cubliPreset; 'run.route.sequence',cubliRoute};
 if ~isempty(cubliSeconds)
     ov = [ov; {'run.edge.duration',cubliSeconds; ...
                'run.point.duration',cubliSeconds; ...
+               'run.edgetopoint.duration',cubliSeconds; ...
                'run.flatchain.duration',cubliSeconds; ...
                'run.directjump.duration',cubliSeconds}];
     if cubliPreset == "edge_low_speed" || cubliPreset == "edge_near_zero"

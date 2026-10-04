@@ -118,7 +118,8 @@ switch P.run.mode
             1.5*P.cube.assemblyMass*P.world.gravity/P.contact.normalStiffness;
         report.checks = {'durationOk','endedOnVertex','stayedOnVertex', ...
                          'penetrationOk'};
-        if P.run.mode == "point_balance" && ...
+        if ismember(P.run.mode,["point_balance","edge_to_point", ...
+                "flat_to_point","flat_to_point_direct"]) && ...
                 ismember(P.run.balancePreset,["point_low_speed","point_near_zero"])
             assert(~isempty(Rrot) && ~isempty(wheelX) && ...
                 ~isempty(wheelY) && ~isempty(wheelZ), ...
@@ -129,7 +130,12 @@ switch P.run.mode
             wz = localAlignedLog(wheelZ,1,t);
             rr = localAlignedLog(Rrot,9,t);
             Rv = reshape(rr,3,3,[]);
-            up = squeeze(pagemtimes(Rv,[1;1;1]/sqrt(3)));
+            if ismember(P.run.mode,["edge_to_point","flat_to_point"])
+                vertexAxis = [-1;1;1]/sqrt(3);
+            else
+                vertexAxis = [1;1;1]/sqrt(3);
+            end
+            up = squeeze(pagemtimes(Rv,vertexAxis));
             tiltDeg = atan2(hypot(up(1,:),up(2,:)),up(3,:))*180/pi;
             tail = t>=max(0,t(end)-min(10,t(end)/2));
             wheelNorm = sqrt(wx.^2+wy.^2+wz.^2);
