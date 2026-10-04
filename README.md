@@ -6,7 +6,9 @@
 
 **Language:** [English](README.md) · [简体中文](README.zh-CN.md)
 
-> **Project scope:** this is a simulation and control research project. Results below refer to the stated model and solver settings; they are not hardware performance claims. The full development history and failed experiments are documented in [`docs/`](docs/).
+**Start here:** [Quick start](#quick-start) · [Current capabilities](#what-works-today) · [How it works](#how-the-project-is-organized) · [Development records](#documentation)
+
+> **Current status:** six of the eight baseline modes pass their simulation checks. String-directed walking is a separate experiment: tested routes complete their requested steps, while contact penetration and some route errors remain unresolved. All results are for the documented simulation and solver settings, not hardware performance.
 
 ---
 
@@ -50,8 +52,9 @@ Edit the mode, preset, and duration and rerun `run_cubli_clean`. Route mode also
 | Inspect basic edge balance | `"edge_balance"` | `"fast"` | `10` |
 | Stand from flat to edge, then keep wheel speed near zero | `"stand_to_edge"` | `"edge_near_zero"` | `300` |
 | Run the full flat → edge → vertex sequence | `"flat_to_point"` | `"fast"` | `[]` |
+| Try a four-step route (experimental) | `"walk_route"` | `"fast"` | `[]` |
 
-`[]` uses the mode's own default duration. **Current duration override is mode-specific:** a nonempty `cubliSeconds` applies to `edge_balance`, `point_balance`, `flat_to_point`, and `flat_to_point_direct`; for `stand_to_edge` it applies when the preset is `edge_low_speed` or `edge_near_zero`. Other modes keep their parameter-file duration. The entry script selects and checks the required contact-solver configuration for the wheel-speed presets.
+For the route example, also set `cubliRoute = "RLUD"`; [route syntax and limits](#string-directed-walking) are below. `[]` uses the mode's own default duration. **Current duration override is mode-specific:** a nonempty `cubliSeconds` applies to `edge_balance`, `point_balance`, `flat_to_point`, and `flat_to_point_direct`; for `stand_to_edge` it applies when the preset is `edge_low_speed` or `edge_near_zero`. Other modes keep their parameter-file duration. The entry script selects and checks the required contact-solver configuration for the wheel-speed presets.
 
 To see **one built model** run multiple modes without regeneration between simulations, use `cubli_demo` after `setup_cubli`. In contrast, `run_cubli_clean` deliberately regenerates its model each time it is run; you do not need to build or edit the `.slx` manually.
 
@@ -71,11 +74,19 @@ All capabilities use the same free-contact plant. “Passes” refers to the pro
 | String-directed walking | `walk_route` | Fixed missed-step detection and wheel-speed overshoot; contact penetration and some long-route cross-track drift remain |
 | Impulse-based flat → vertex | `stand_to_point` | Fails; wheel speed exceeds the budget |
 
-`verify_cubli` checks all eight modes with the verified `fast` preset. **Six pass; `walk` and `stand_to_point` are known failures.** See [status](docs/01_项目状态.md) and [failure analysis](docs/03_未解决与已证伪.md) for the exact limits.
+`verify_cubli` checks the eight original modes with the verified `fast` preset; `walk_route` has its own verifier. **Six of the original eight pass; `walk` and `stand_to_point` are known failures.** See [status](docs/01_项目状态.md) and [failure analysis](docs/03_未解决与已证伪.md) for the exact limits.
 
 ### String-directed walking
 
-In [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m), set `cubliMode = "walk_route"` and set `cubliRoute` to a string such as `"RLUD"` or `"RRRRRR"`. Each letter requests one face roll in a fixed ground-plane world direction: `R/L` are `+X/-X`; `U/D` are `+Y/-Y`. Routes contain 1–64 letters, case insensitive. The default duration is four seconds per letter plus two seconds; `cubliSeconds` does not override this mode.
+In [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m), use:
+
+```matlab
+cubliMode   = "walk_route";
+cubliRoute  = "RLUD";       % one face roll per letter
+cubliPreset = "fast";
+```
+
+Each letter requests one face roll in a fixed ground-plane world direction: `R/L` are `+X/-X`; `U/D` are `+Y/-Y`. Use `"RRRRRR"` for six consecutive rolls to the right. Routes contain 1–64 letters, case insensitive. The default duration is four seconds per letter plus two seconds; `cubliSeconds` does not override this mode.
 
 The controller combines rotation, the new bottom face, and measured travel to confirm each step, then waits for wheel slowdown and a settled flat face. It reselects the wheel after a turn. `cubli_route_state` logs `[completed steps; phase; fault code]`; `cubli_report` checks each step, cross-track drift, endpoint, wheel speed, settling, and contact penetration. `verify_walk_route` runs five representative routes, including two that previously stalled. All 28 tested route combinations completed their requested steps below the 1800 rad/s wheel limit. **Contact penetration and cross-track drift on some longer routes still fail their checks.** See the [route development record](docs/08_字符串路线行走开发记录.md).
 

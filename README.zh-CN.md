@@ -6,7 +6,9 @@
 
 **语言：**[简体中文](README.zh-CN.md) · [English](README.md)
 
-> **项目定位：**这是仿真和控制研究项目。下文结果只适用于写明的模型和求解器设置，不能直接当作实物性能。详细架构、测量记录以及失败的方案见 [`docs/`](docs/)。
+**快速导航：**[运行项目](#快速运行) · [当前功能](#目前实现了什么) · [实现流程](#项目如何跑起来) · [开发文档](#文档索引)
+
+> **当前状态：**八项原有模式中，六项通过现有仿真验收。字符串路线行走另属实验功能：测试路线均完成了请求步数，但接触穿透和部分路线偏移尚未解决。文中结果只适用于注明的模型及求解器配置，不代表实物性能。
 
 ---
 
@@ -50,8 +52,9 @@ run_cubli_clean
 | 看基础棱平衡 | `"edge_balance"` | `"fast"` | `10` |
 | 从平放起立到棱，并让飞轮保持在零附近 | `"stand_to_edge"` | `"edge_near_zero"` | `300` |
 | 看完整的平放 → 棱 → 顶点两段起立 | `"flat_to_point"` | `"fast"` | `[]` |
+| 尝试四步路线（实验功能） | `"walk_route"` | `"fast"` | `[]` |
 
-`[]` 表示使用该模式在参数文件中的默认时长。**目前 `cubliSeconds` 的覆盖范围与模式有关：**非空时可覆盖 `edge_balance`、`point_balance`、`flat_to_point`、`flat_to_point_direct`；对于 `stand_to_edge`，只有选择 `edge_low_speed` 或 `edge_near_zero` 时才会覆盖。其他模式继续使用各自默认时长。入口会自动为相应的轮速预设设置并核对接触求解器。
+路线示例还需设置 `cubliRoute = "RLUD"`；[路线语法和限制](#字符串路线行走)见下文。`[]` 表示使用该模式在参数文件中的默认时长。**目前 `cubliSeconds` 的覆盖范围与模式有关：**非空时可覆盖 `edge_balance`、`point_balance`、`flat_to_point`、`flat_to_point_direct`；对于 `stand_to_edge`，只有选择 `edge_low_speed` 或 `edge_near_zero` 时才会覆盖。其他模式继续使用各自默认时长。入口会自动为相应的轮速预设设置并核对接触求解器。
 
 如果想看**一台已生成的模型**在多种模式间切换、而不在两次仿真之间重新生成 `.slx`，先执行 `setup_cubli`，再运行 `cubli_demo`。普通入口 `run_cubli_clean` 每次运行都会重新生成模型；用户不需要手动搭建或修改 `.slx`。
 
@@ -71,11 +74,19 @@ run_cubli_clean
 | 字符串路线行走 | `walk_route` | 已修复组合路线漏判一步和轮速越限；接触穿透与部分长路线横向偏移仍未通过 |
 | 冲量式平放 → 顶点 | `stand_to_point` | 未通过；飞轮超出转速预算 |
 
-`verify_cubli` 使用已验收的 `fast` 预设检查全部八种模式：**六项通过，`walk` 和 `stand_to_point` 为已知失败项。**准确边界见[项目状态](docs/01_项目状态.md)与[失败分析](docs/03_未解决与已证伪.md)。
+`verify_cubli` 使用已验收的 `fast` 预设检查原有八种模式；`walk_route` 使用独立验证脚本。**原有八项中六项通过，`walk` 和 `stand_to_point` 为已知失败项。**准确边界见[项目状态](docs/01_项目状态.md)与[失败分析](docs/03_未解决与已证伪.md)。
 
 ### 字符串路线行走
 
-在 [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m) 中设置 `cubliMode = "walk_route"`，并将 `cubliRoute` 写成由 `R`、`L`、`U`、`D` 组成的字符串，例如 `"RLUD"` 或 `"RRRRRR"`。`R/L` 分别沿地面固定世界坐标 `+X/-X`，`U/D` 沿 `+Y/-Y`；一个字符表示翻过一个面。路线长度为 1–64 步，大小写均可；时长默认按每步 4 秒加 2 秒余量自动计算。`cubliSeconds` 不覆盖该模式的时长。
+在 [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m) 中设置：
+
+```matlab
+cubliMode   = "walk_route";
+cubliRoute  = "RLUD";       % 每个字符翻过一个面
+cubliPreset = "fast";
+```
+
+`R/L` 分别沿地面固定世界坐标 `+X/-X`，`U/D` 沿 `+Y/-Y`；`"RRRRRR"` 表示连续向右翻六次。路线长度为 1–64 步，大小写均可；时长默认按每步 4 秒加 2 秒余量自动计算。`cubliSeconds` 不覆盖该模式的时长。
 
 控制器结合转角、新底面和实际位移判断一步是否完成，飞轮减速、方块落平后才执行下一个字符；转向时根据当前姿态重新选飞轮。工作区的 `cubli_route_state` 记录 `[已完成步数; 阶段; 故障码]`，`cubli_report` 核对逐步位移、横向偏移、终点、轮速、落稳与接触穿透。`verify_walk_route` 复现五条代表性路线，包含曾发生停步的 `RULD` 和 `RLUDRLUD`。28 条组合路线完成请求步数，峰值轮速低于 1800 rad/s；**接触穿透及个别长路线的横向偏移仍不达标**。设计和逐项结果见[路线行走开发记录](docs/08_字符串路线行走开发记录.md)。
 
