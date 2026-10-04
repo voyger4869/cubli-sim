@@ -68,7 +68,7 @@ All capabilities use the same free-contact plant. “Passes” refers to the pro
 | **Flat face → edge → vertex → hold** | `flat_to_point` | Passes; complete two-stage stand-up |
 | Flat face → vertex directly | `flat_to_point_direct` | Passes its current check; still experimental |
 | Face-by-face walking | `walk` | Moves, but fails step-count/penetration checks |
-| String-directed walking | `walk_route` | `RLUD`, `RRRRRR`, and turning route `RU` complete their steps; contact-penetration check still fails |
+| String-directed walking | `walk_route` | Fixed missed-step detection and wheel-speed overshoot; contact penetration and some long-route cross-track drift remain |
 | Impulse-based flat → vertex | `stand_to_point` | Fails; wheel speed exceeds the budget |
 
 `verify_cubli` checks all eight modes with the verified `fast` preset. **Six pass; `walk` and `stand_to_point` are known failures.** See [status](docs/01_项目状态.md) and [failure analysis](docs/03_未解决与已证伪.md) for the exact limits.
@@ -77,7 +77,7 @@ All capabilities use the same free-contact plant. “Passes” refers to the pro
 
 In [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m), set `cubliMode = "walk_route"` and set `cubliRoute` to a string such as `"RLUD"` or `"RRRRRR"`. Each letter requests one face roll in a fixed ground-plane world direction: `R/L` are `+X/-X`; `U/D` are `+Y/-Y`. Routes contain 1–64 letters, case insensitive. The default duration is four seconds per letter plus two seconds; `cubliSeconds` does not override this mode.
 
-The controller waits for a roll, wheel slowdown, and a settled flat face before advancing. It reselects the wheel from the cube attitude after a turn. `cubli_route_state` logs `[completed steps; phase; fault code]`, and `cubli_report` checks each step, the endpoint, settling, and contact penetration. Run `verify_walk_route` for the three short examples. **Peak contact penetration remains about 2.4–2.5 mm and fails the existing gate, so this is still experimental.** See the [route development record](docs/08_字符串路线行走开发记录.md).
+The controller combines rotation, the new bottom face, and measured travel to confirm each step, then waits for wheel slowdown and a settled flat face. It reselects the wheel after a turn. `cubli_route_state` logs `[completed steps; phase; fault code]`; `cubli_report` checks each step, cross-track drift, endpoint, wheel speed, settling, and contact penetration. `verify_walk_route` runs five representative routes, including two that previously stalled. All 28 tested route combinations completed their requested steps below the 1800 rad/s wheel limit. **Contact penetration and cross-track drift on some longer routes still fail their checks.** See the [route development record](docs/08_字符串路线行走开发记录.md).
 
 ## Edge-balance wheel-speed presets
 
@@ -102,7 +102,7 @@ verify_cubli                                % eight modes; two known failures
 verify_edge_low_speed("stand_to_edge",30)   % quick low-speed check
 verify_edge_near_zero("stand_to_edge",300)  % long near-zero check
 verify_edge_near_zero("edge_balance",120)   % starts on the edge
-verify_walk_route                            % RLUD, RRRRRR, RU route trials
+verify_walk_route                            % five route motion and wheel-speed trials
 ```
 
 The near-zero verifier checks the solver block, continuous edge capture, edge-frame attitude, Y-wheel tail statistics, and the combined speed of **all three wheels**. The 300 s run is intentionally long. For controlled before/after comparisons of the original behavior, see `verify_preset_snapshot` and `verify_preset_compare` in [`src/verification/`](src/verification/).

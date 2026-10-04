@@ -1,4 +1,4 @@
-function report = cubli_run_report(com,rate,tauX,tauY,tauZ,penetration,P,Rrot,wheelY,routeLog)
+function report = cubli_run_report(com,rate,tauX,tauY,tauZ,penetration,P,Rrot,wheelY,routeLog,wheelX,wheelZ)
 %CUBLI_RUN_REPORT Verdict for a unified-plant run, per selected mode.
 %
 % For edge_balance the state is reconstructed the same way the controller
@@ -30,6 +30,8 @@ if nargin < 7 || isempty(P), P = cubli_clean_parameters(); end
 if nargin < 8, Rrot = []; end
 if nargin < 9, wheelY = []; end
 if nargin < 10, routeLog = []; end
+if nargin < 11, wheelX = []; end
+if nargin < 12, wheelZ = []; end
 d = P.geometry.edgeHeight;
 c = reshape(com.Data,3,numel(com.Time));
 r = reshape(rate.Data,3,numel(rate.Time));
@@ -117,8 +119,9 @@ switch P.run.mode
         report.checks = {'durationOk','endedOnVertex','stayedOnVertex', ...
                          'penetrationOk'};
     case "walk_route"
-        assert(~isempty(routeLog),'CubliClean:RouteLog', ...
-            'Route walking requires the cubli_route_state log.');
+        assert(~isempty(routeLog) && ~isempty(wheelX) && ...
+            ~isempty(wheelY) && ~isempty(wheelZ),'CubliClean:RouteLog', ...
+            'Route walking requires route-state and all three wheel-speed logs.');
         state = cubli_log_reshape(routeLog,3);
         routeCodes = cubli_route_encode(P.run.route.sequence,64);
         n = nnz(routeCodes);
@@ -134,7 +137,11 @@ switch P.run.mode
         report.positionErrorSides = norm(actual-expected)/P.cube.side;
         report.completedOk = report.routeCompleted == n && report.routePhase == 4;
         report.faultOk = report.routeFault == 0;
-        report.positionOk = report.positionErrorSides <= max(0.5,0.05*n);
+        report.wheelPeak = [max(abs(cubli_log_reshape(wheelX,1))), ...
+            max(abs(cubli_log_reshape(wheelY,1))), ...
+            max(abs(cubli_log_reshape(wheelZ,1)))];
+        report.wheelSpeedOk = all(report.wheelPeak <= P.motor.maxSpeed);
+        report.positionOk = report.positionErrorSides <= 0.5;
         % Inspect each transition, not just the net endpoint: RLUD can return
         % near its start even if an individual command went the wrong way.
         change = find(diff(state(1,:)) > 0) + 1;
@@ -158,8 +165,9 @@ switch P.run.mode
             end
         end
         report.stepsOk = numel(change) == n && ...
-            all(report.stepProjectionSides >= P.run.route.minTravelFrac) && ...
-            all(report.stepCrossSides <= 0.75);
+            all(report.stepProjectionSides >= P.run.route.minTravelFrac);
+        report.crossTrackOk = all(report.stepCrossSides <= ...
+            P.run.route.crossTrackMaxFrac);
         last = t >= max(0,t(end)-min(0.5,t(end)/4));
         zFlat = P.cube.side/2 - ...
             P.cube.assemblyMass*P.world.gravity/P.contact.normalStiffness;
@@ -168,8 +176,9 @@ switch P.run.mode
         report.penetrationMax = max(penetration.Data(:));
         report.penetrationOk = report.penetrationMax <= ...
             1.5*P.cube.assemblyMass*P.world.gravity/P.contact.normalStiffness;
-        report.checks = {'durationOk','completedOk','faultOk','stepsOk','positionOk', ...
-            'settledOk','penetrationOk'};
+        report.checks = {'durationOk','completedOk','faultOk','stepsOk', ...
+            'crossTrackOk','positionOk', ...
+            'settledOk','wheelSpeedOk','penetrationOk'};
     case "walk"
         % Discrete face-by-face gait. Counted on the ACCUMULATED cube rotation
         % about world Y, never on an attitude angle: atan2(R13,R33) reads the
@@ -289,7 +298,11 @@ elseif strcmp(P.run.mode,"walk_route")
         report.expectedXY,report.positionErrorSides);
     fprintf('  per-step forward travel (sides): %s; cross travel: %s\n', ...
         mat2str(report.stepProjectionSides,3),mat2str(report.stepCrossSides,3));
+    fprintf('  cross-track limit %.2f side per step\n', ...
+        P.run.route.crossTrackMaxFrac);
     fprintf('  max contact penetration %.3f mm\n',1000*report.penetrationMax);
+    fprintf('  wheel speed peaks [%.1f %.1f %.1f] rad/s (limit %.0f)\n', ...
+        report.wheelPeak,P.motor.maxSpeed);
 else
     fprintf('Cubli %s: tEnd=%.3f  comZ min %.5f  tauPeak=[%.4f %.4f %.4f]\n', ...
         P.run.mode, report.tEnd, report.comZMin, report.tauPeak);

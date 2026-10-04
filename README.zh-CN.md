@@ -68,7 +68,7 @@ run_cubli_clean
 | **平放 → 棱 → 顶点 → 保持** | `flat_to_point` | 通过；完整两段起立 |
 | 平放直接跳到顶点 | `flat_to_point_direct` | 当前判据通过，仍属实验方案 |
 | 逐面行走 | `walk` | 能移动，但面数与接触穿透验收不通过 |
-| 字符串路线行走 | `walk_route` | `RLUD`、`RRRRRR` 和拐弯 `RU` 均逐步完成；接触穿透验收未通过，仍属实验模式 |
+| 字符串路线行走 | `walk_route` | 已修复组合路线漏判一步和轮速越限；接触穿透与部分长路线横向偏移仍未通过 |
 | 冲量式平放 → 顶点 | `stand_to_point` | 未通过；飞轮超出转速预算 |
 
 `verify_cubli` 使用已验收的 `fast` 预设检查全部八种模式：**六项通过，`walk` 和 `stand_to_point` 为已知失败项。**准确边界见[项目状态](docs/01_项目状态.md)与[失败分析](docs/03_未解决与已证伪.md)。
@@ -77,7 +77,7 @@ run_cubli_clean
 
 在 [`src/core/run_cubli_clean.m`](src/core/run_cubli_clean.m) 中设置 `cubliMode = "walk_route"`，并将 `cubliRoute` 写成由 `R`、`L`、`U`、`D` 组成的字符串，例如 `"RLUD"` 或 `"RRRRRR"`。`R/L` 分别沿地面固定世界坐标 `+X/-X`，`U/D` 沿 `+Y/-Y`；一个字符表示翻过一个面。路线长度为 1–64 步，大小写均可；时长默认按每步 4 秒加 2 秒余量自动计算。`cubliSeconds` 不覆盖该模式的时长。
 
-控制器等当前一步转过约 90°、飞轮减速、方块落平且角速度变小，再执行下一个字符。转向时会根据方块当前姿态重新选飞轮。工作区的 `cubli_route_state` 记录 `[已完成步数; 阶段; 故障码]`，`cubli_report` 同时核对逐步位移、终点误差、落稳与接触穿透。可运行 `verify_walk_route` 复现三个短路线。**现有接触模型的峰值穿透约 2.4–2.5 mm，超过原验收门槛；路线动作完成不代表整体验收通过。**设计和逐项结果见[路线行走开发记录](docs/08_字符串路线行走开发记录.md)。
+控制器结合转角、新底面和实际位移判断一步是否完成，飞轮减速、方块落平后才执行下一个字符；转向时根据当前姿态重新选飞轮。工作区的 `cubli_route_state` 记录 `[已完成步数; 阶段; 故障码]`，`cubli_report` 核对逐步位移、横向偏移、终点、轮速、落稳与接触穿透。`verify_walk_route` 复现五条代表性路线，包含曾发生停步的 `RULD` 和 `RLUDRLUD`。28 条组合路线完成请求步数，峰值轮速低于 1800 rad/s；**接触穿透及个别长路线的横向偏移仍不达标**。设计和逐项结果见[路线行走开发记录](docs/08_字符串路线行走开发记录.md)。
 
 ## 棱平衡飞轮转速预设
 
@@ -102,7 +102,7 @@ verify_cubli                                % 八种模式；其中两项为已�
 verify_edge_low_speed("stand_to_edge",30)   % 低轮速快速检查
 verify_edge_near_zero("stand_to_edge",300)  % 近零轮速长时检查
 verify_edge_near_zero("edge_balance",120)   % 从棱上直接起步
-verify_walk_route                            % RLUD、RRRRRR、RU；路线实验
+verify_walk_route                            % 五条代表性路线；动作与轮速回归
 ```
 
 近零轮速验证脚本会核对求解器块、连续稳定捕获、随棱姿态、Y 轮末段统计和**三轮合成转速**。300 秒验证需要较长运行时间。若要比较修改前后的原始行为，可使用 [`src/verification/`](src/verification/) 中的 `verify_preset_snapshot`、`verify_preset_compare`。

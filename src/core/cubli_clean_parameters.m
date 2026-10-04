@@ -446,6 +446,8 @@ P.run.route.flatTolDeg = 10;
 P.run.route.rateTol = 0.5;
 P.run.route.settleTime = 0.10;
 P.run.route.minTravelFrac = 0.5;
+P.run.route.crossTrackMaxFrac = 0.30; % per step, fraction of one cube side
+P.run.route.speedGuardMargin = 35;  % rad/s before the 1800 rad/s wheel limit
 P.run.route.duration = [];  % auto: stepTimeout * route length + 2 s
 
 
